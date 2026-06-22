@@ -1,0 +1,66 @@
+{
+  "name": "accela-chat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Accela Chat — a Chromium (Electron) desktop client that uses Claude Code as the model, styled in the Accela 2026 brand.",
+  "author": "Accela Sales Engineering",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "bun run scripts/dev.mjs",
+    "dev:vite": "vite",
+    "build:renderer": "vite build",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.1.0",
+    "@fontsource/jetbrains-mono": "^5.1.1",
+    "@fontsource/plus-jakarta-sans": "^5.1.0",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.accela.chat",
+    "productName": "Accela Chat",
+    "copyright": "© Accela",
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": ["dist/**/*", "electron/**/*", "package.json"],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "category": "public.app-category.business",
+      "icon": "build/icon.png"
+    },
+    "dmg": { "title": "Accela Chat ${version}" },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Accela Chat"
+    },
+    "publish": [
+      { "provider": "github", "owner": "Nicolaylameijer", "repo": "accela-chat" }
+    ]
+  }
+}
