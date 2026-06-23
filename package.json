@@ -60,7 +60,7 @@
       "shortcutName": "Accela Chat"
     },
     "publish": [
-      { "provider": "github", "owner": "Nicolaylameijer", "repo": "accela-chat" }
+      { "provider": "github", "owner": "nicoaccela", "repo": "accela-chat" }
     ]
   }
 }
