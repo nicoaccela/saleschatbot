@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, Square, Slash, Paperclip, FolderOpen, X, FileText } from "lucide-react";
+// File drag & drop is handled at the ChatPane level (covers the whole pane),
+// so the composer only renders the input + attach buttons.
 import type { SlashCommand } from "../lib/types";
 
 function baseName(p: string) {
@@ -16,7 +18,6 @@ export default function Composer({
   commands,
   attachments,
   onAttach,
-  onAddPaths,
   onRemoveAttach,
 }: {
   value: string;
@@ -27,12 +28,10 @@ export default function Composer({
   commands: SlashCommand[];
   attachments: string[];
   onAttach: (directory: boolean) => void;
-  onAddPaths: (paths: string[]) => void;
   onRemoveAttach: (path: string) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [highlight, setHighlight] = useState(0);
-  const [dragOver, setDragOver] = useState(false);
 
   const slashQuery = useMemo(() => {
     const m = value.match(/^\/(\S*)$/);
@@ -73,18 +72,6 @@ export default function Composer({
     }
   }
 
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragOver(false);
-    const paths: string[] = [];
-    for (const f of Array.from(e.dataTransfer.files)) {
-      // Electron augments dropped File objects with an absolute .path.
-      const p = (f as File & { path?: string }).path;
-      if (p) paths.push(p);
-    }
-    if (paths.length) onAddPaths(paths);
-  }
-
   return (
     <div className="composer-wrap">
       {pickerOpen && (
@@ -116,12 +103,7 @@ export default function Composer({
         </div>
       )}
 
-      <div
-        className={"composer" + (dragOver ? " drag" : "")}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-      >
+      <div className="composer">
         <button className="attach-btn" title="Attach files" onClick={() => onAttach(false)}>
           <Paperclip size={18} />
         </button>
@@ -132,7 +114,7 @@ export default function Composer({
           ref={ref}
           rows={1}
           value={value}
-          placeholder={dragOver ? "Drop files to attach…" : "Message Accela Assistant…  (type / for commands)"}
+          placeholder="Message Accela Assistant…  (type / for commands)"
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           autoFocus

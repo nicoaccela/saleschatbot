@@ -1,10 +1,16 @@
 // preload.js — safe bridge between the renderer and main. Exposes a typed-ish
 // `window.accela` API; no Node access leaks into the page.
 
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("accela", {
   platform: process.platform, // "darwin" | "win32" | "linux"
+
+  // Resolve a dropped File to its absolute path. Electron 32+ removed the old
+  // File.path property, so webUtils.getPathForFile is now the only way.
+  pathForFile: (file) => {
+    try { return webUtils.getPathForFile(file) || ""; } catch { return ""; }
+  },
 
   // setup / health
   checkClaude: () => ipcRenderer.invoke("claude:check"),

@@ -64,6 +64,7 @@ declare global {
   interface Window {
     accela: {
       platform: string;
+      pathForFile: (file: File) => string;
       checkClaude: () => Promise<{ ok: boolean; version: string | null; path: string }>;
       listCommands: () => Promise<SlashCommand[]>;
       getSettings: () => Promise<Settings>;

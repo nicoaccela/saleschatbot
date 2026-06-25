@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SplitSquareHorizontal, X as XIcon, Sparkles } from "lucide-react";
+import { SplitSquareHorizontal, X as XIcon, Sparkles, Upload } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import Composer from "./Composer";
 import ModelPicker from "./ModelPicker";
@@ -42,6 +42,11 @@ export default function ChatPane({
   const [model, setModel] = useState(settings.model);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [showSkills, setShowSkills] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  // dragenter/leave fire for every child element, so count depth to know when
+  // the cursor has truly left the pane.
+  const dragDepth = useRef(0);
 
   const convIdRef = useRef<string | null>(conversationId);
   const requestIdRef = useRef<string | null>(null);
@@ -166,6 +171,38 @@ export default function ChatPane({
     setAttachments((a) => a.filter((x) => x !== p));
   }
 
+  // ---- Drag & drop onto the whole pane ----
+  function hasFiles(e: React.DragEvent) {
+    return Array.from(e.dataTransfer.types || []).includes("Files");
+  }
+  function onDragEnter(e: React.DragEvent) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragOver(true);
+  }
+  function onDragOver(e: React.DragEvent) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  function onDragLeave() {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragOver(false);
+  }
+  function onDrop(e: React.DragEvent) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragOver(false);
+    const paths: string[] = [];
+    for (const f of Array.from(e.dataTransfer.files)) {
+      const p = window.accela.pathForFile(f) || (f as File & { path?: string }).path || "";
+      if (p) paths.push(p);
+    }
+    if (paths.length) addPaths(paths);
+  }
+
   async function openSkills() {
     await ensureConv();
     setShowSkills(true);
@@ -188,7 +225,14 @@ export default function ChatPane({
   const activeSkills = conv?.selectedSkills ?? [];
 
   return (
-    <section className={"pane" + (isFocused ? " focused" : "")} onMouseDown={onFocus}>
+    <section
+      className={"pane" + (isFocused ? " focused" : "")}
+      onMouseDown={onFocus}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       <div className="topbar">
         <div className="conv-title">{conv?.title ?? "New chat"}</div>
         <div className="topbar-actions">
@@ -268,9 +312,18 @@ export default function ChatPane({
         commands={commands}
         attachments={attachments}
         onAttach={onAttach}
-        onAddPaths={addPaths}
         onRemoveAttach={removeAttach}
       />
+
+      {dragOver && (
+        <div className="drop-overlay">
+          <div className="drop-card">
+            <Upload size={26} />
+            <strong>Drop to attach</strong>
+            <span>Files &amp; folders will be added to this chat</span>
+          </div>
+        </div>
+      )}
 
       {showSkills && conv && (
         <SkillsPanel
