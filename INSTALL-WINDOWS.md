@@ -41,14 +41,25 @@ Install whatever is missing:
 
 ## 1. Get the code
 
+> **This is a private repository.** A plain `git clone` will fail with an auth
+> error unless this machine is signed in to GitHub with access to
+> `nicoaccela/accela-chat`. Easiest path — use the GitHub CLI, which also sets up
+> git's credentials for you:
+>
+> ```powershell
+> winget install --id GitHub.cli -e   # if gh isn't installed
+> gh auth login                       # GitHub.com → HTTPS → log in via browser
+> ```
+
 ```powershell
 cd $HOME
-git clone https://github.com/nicoaccela/accela-chat.git
+gh repo clone nicoaccela/accela-chat   # or: git clone https://github.com/nicoaccela/accela-chat.git
 cd accela-chat
 bun install
 ```
 
 `bun install` pulls Electron + the renderer deps (a few hundred MB; one time).
+(Once `gh auth login` has run, plain `git clone` over HTTPS works too.)
 
 ---
 
