@@ -9,6 +9,37 @@ const { listAvailableCommands } = require("./commands");
 
 let mainWindow = null;
 
+// Background auto-update from the public GitHub Releases feed (configured in
+// package.json -> build.publish). Only the packaged/installed build can replace
+// itself; in dev there's nothing to update, so this is a no-op.
+function initAutoUpdates() {
+  if (!app.isPackaged) return;
+  try {
+    const { autoUpdater } = require("electron-updater");
+    // Log to %APPDATA%/accela-chat/logs so a broken update chain is diagnosable
+    // on a remote machine — otherwise every failure mode is silent in a
+    // packaged app with no devtools.
+    try {
+      const log = require("electron-log");
+      log.transports.file.level = "info";
+      autoUpdater.logger = log;
+    } catch { /* logging is best-effort */ }
+    autoUpdater.autoDownload = true;
+    autoUpdater.on("error", (e) => { try { autoUpdater.logger.error("auto-update error", e); } catch { /* ignore */ } });
+    autoUpdater.on("update-downloaded", (info) => {
+      try { autoUpdater.logger.info("update downloaded:", info && info.version); } catch { /* ignore */ }
+    });
+    // Downloads a newer version in the background and installs it on the next
+    // app restart; surfaces a native "ready to install" notification.
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    // Re-check periodically for long-lived sessions (the app may stay open for days).
+    setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 60 * 60 * 1000);
+  } catch (err) {
+    // Never let an update hiccup block startup.
+    console.error("auto-update init failed:", err);
+  }
+}
+
 // Track in-flight turns so the UI can cancel them.
 const cancellers = new Map(); // requestId -> fn
 
@@ -50,6 +81,7 @@ app.whenReady().then(() => {
   store.init(app.getPath("userData"));
   registerIpc();
   createWindow();
+  initAutoUpdates();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -121,6 +153,7 @@ function registerIpc() {
     });
 
     let requestId = null;
+    let flushTimer = null;
     try {
     const settings = store.getSettings();
     let conv = store.getConversation(conversationId);
@@ -164,16 +197,44 @@ function registerIpc() {
     requestId = store.uid();
     send("chat:event", { type: "start", requestId, conversationId: conv.id });
 
+    // Coalesce high-frequency text deltas (one per token) into ~40fps IPC
+    // batches. Forwarding each delta individually floods the main→renderer
+    // channel with structured-clone serializations and wakes the renderer for
+    // every token — costly with two panes streaming on a low-end machine. We
+    // accumulate text and flush on a short timer, force-flushing before any
+    // non-delta event (and at turn end) so delta ordering is preserved.
+    let deltaBuf = "";
+    let cancelled = false; // set by the canceller when the user stops this turn
+    const flushDeltas = () => {
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      if (deltaBuf) {
+        send("chat:event", { type: "delta", text: deltaBuf, requestId, conversationId: conv.id });
+        deltaBuf = "";
+      }
+    };
+
     const result = await runTurn({
       prompt: effectivePrompt,
       model: useModel,
       resumeId: conv.claudeSessionId,
       systemPrompt: effectiveSystem,
       toolMode: settings.toolMode,
-      registerCanceller: (fn) => cancellers.set(requestId, fn),
-      onEvent: (evt) => send("chat:event", { ...evt, requestId, conversationId: conv.id }),
+      registerCanceller: (fn) => cancellers.set(requestId, () => { cancelled = true; fn(); }),
+      onEvent: (evt) => {
+        // Once stopped, drop the dying child's trailing output instead of
+        // buffering/serializing it across IPC for a turn the user abandoned.
+        if (cancelled) return;
+        if (evt.type === "delta") {
+          deltaBuf += evt.text || "";
+          if (!flushTimer) flushTimer = setTimeout(flushDeltas, 24);
+        } else {
+          flushDeltas();
+          send("chat:event", { ...evt, requestId, conversationId: conv.id });
+        }
+      },
     });
 
+    flushDeltas(); // emit any buffered tail before persisting + returning
     cancellers.delete(requestId);
 
     // Persist assistant reply + Claude Code session id for the next --resume.
@@ -201,6 +262,7 @@ function registerIpc() {
       title: fresh ? fresh.title : conv.title,
     };
     } catch (err) {
+      if (flushTimer) clearTimeout(flushTimer);
       if (requestId) cancellers.delete(requestId);
       return errShape(err && err.message ? err.message : String(err));
     }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SplitSquareHorizontal, X as XIcon, Sparkles, Upload } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import Composer from "./Composer";
@@ -9,6 +9,11 @@ import type { ChatEvent, Conversation, Settings, SlashCommand } from "../lib/typ
 import { skillLabel } from "../lib/presets";
 
 let paneSeq = 0;
+
+// Ephemeral preview bubbles (live stream / "thinking") never display a
+// timestamp and are replaced by the persisted message on completion — so use a
+// constant instead of allocating a new Date on every streamed frame.
+const PREVIEW_TS = "";
 
 export default function ChatPane({
   conversationId,
@@ -54,42 +59,102 @@ export default function ChatPane({
   const seqRef = useRef(0);
   const localId = (p: string) => `${p}-${++paneSeq}-${++seqRef.current}`;
 
+  // Buffer for coalescing stream deltas (see the stream subscription below).
+  const pendingRef = useRef("");
+  const rafRef = useRef<number | null>(null);
+  // True only between this pane firing a send and adopting that turn's "start"
+  // event. IPC broadcasts every event to every pane, so when the same
+  // conversation is open in two panes this flag ensures only the initiating
+  // pane consumes the turn's deltas (no duplicate render / double parse).
+  const expectingRef = useRef(false);
+
   convIdRef.current = conv?.id ?? null;
+
+  // Cancel any queued flush, drop buffered text, forget the active request, and
+  // clear the live stream. Called at every turn boundary (send / finish / stop /
+  // conversation switch) so a queued frame or a trailing delta from a finished
+  // or stopped turn can't append stale text — to this conversation or the next.
+  const clearStream = useCallback(() => {
+    pendingRef.current = "";
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    requestIdRef.current = null;
+    expectingRef.current = false;
+    setStreamText("");
+  }, []);
 
   // Load when the externally-selected conversation changes.
   useEffect(() => {
     if (conversationId === (conv?.id ?? null)) return;
+    // Reset synchronously, BEFORE the async load, so any frame or delta still in
+    // flight for the previous conversation can't bleed into the one we switch to.
+    clearStream();
     if (!conversationId) {
       setConv(null);
-      setStreamText("");
       return;
     }
     window.accela.getConversation(conversationId).then((c) => {
       setConv(c);
-      setStreamText("");
       setModel(c?.model || settings.model);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
-  // Stream subscription — filter to THIS pane's conversation.
+  // Stream subscription — filter to THIS pane's conversation. Deltas arrive
+  // very frequently (partial messages, unthrottled over IPC), and each one
+  // would otherwise trigger a render that re-parses the whole growing reply's
+  // markdown — O(n²) and the main source of jank on low-end hardware. So we
+  // buffer incoming text and flush at most once per animation frame.
   useEffect(() => {
+    const flush = () => {
+      rafRef.current = null;
+      const chunk = pendingRef.current;
+      if (!chunk) return;
+      pendingRef.current = "";
+      setStreamText((t) => t + chunk);
+    };
     const off = window.accela.onChatEvent((e: ChatEvent) => {
       if (e.conversationId !== convIdRef.current) return;
       if (e.type === "start") {
+        // Only the pane that fired this send adopts the turn (see expectingRef).
+        if (!expectingRef.current) return;
+        expectingRef.current = false;
         requestIdRef.current = e.requestId;
+        pendingRef.current = "";
+        if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
         setStreamText("");
       } else if (e.type === "delta") {
-        setStreamText((t) => t + (e.text || ""));
+        // Drop trailing deltas from a finished/stopped turn (requestIdRef is
+        // nulled by clearStream) or from a turn this pane didn't initiate.
+        if (e.requestId !== requestIdRef.current) return;
+        pendingRef.current += e.text || "";
+        if (rafRef.current == null) rafRef.current = requestAnimationFrame(flush);
       }
     });
-    return off;
+    return () => {
+      off();
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
-  useEffect(() => {
+  // Jump to the newest message on load and whenever a message is added.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [conv?.messages.length, streamText]);
+  }, [conv?.messages.length]);
+
+  // While streaming, only auto-follow if the user is already near the bottom —
+  // so they can scroll up to read without being yanked back down each frame
+  // (this fires ~once per animation frame thanks to the delta coalescing).
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !streamText) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
+  }, [streamText]);
 
   const ensureConv = useCallback(async (): Promise<Conversation> => {
     if (conv) return conv;
@@ -125,7 +190,7 @@ export default function ChatPane({
     setInput("");
     setAttachments([]);
     setBusy(true);
-    setStreamText("");
+    clearStream();
 
     const appendError = (msg: string) =>
       setConv((c) =>
@@ -133,6 +198,9 @@ export default function ChatPane({
       );
 
     try {
+      // Claim the turn so this pane (not another showing the same conv) adopts
+      // its "start" event. Set synchronously before the IPC round-trip.
+      expectingRef.current = true;
       const res = await window.accela.sendMessage({
         conversationId: current.id,
         text,
@@ -146,8 +214,7 @@ export default function ChatPane({
       appendError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
-      setStreamText("");
-      requestIdRef.current = null;
+      clearStream();
       onChanged();
     }
   }
@@ -155,8 +222,7 @@ export default function ChatPane({
   async function handleStop() {
     const id = requestIdRef.current;
     setBusy(false);
-    setStreamText("");
-    requestIdRef.current = null;
+    clearStream();
     if (id) await window.accela.stop(id);
   }
 
@@ -285,7 +351,7 @@ export default function ChatPane({
                   <div key={m.id + "-streamwrap"}>
                     <MessageBubble message={m} />
                     <MessageBubble
-                      message={{ id: "stream", role: "assistant", content: streamText, ts: new Date().toISOString() }}
+                      message={{ id: "stream", role: "assistant", content: streamText, ts: PREVIEW_TS }}
                       streaming
                     />
                   </div>
@@ -295,7 +361,7 @@ export default function ChatPane({
             })}
             {busy && !showStreaming && (
               <MessageBubble
-                message={{ id: "thinking", role: "assistant", content: "", ts: new Date().toISOString() }}
+                message={{ id: "thinking", role: "assistant", content: "", ts: PREVIEW_TS }}
                 streaming
               />
             )}

@@ -318,6 +318,9 @@ button {
   display: flex;
   gap: 14px;
   padding: 14px 0;
+  /* Isolate each settled message's layout so the growing streaming bubble's
+     reflow doesn't re-lay-out the entire transcript every frame. */
+  contain: layout;
 }
 .avatar {
   flex: 0 0 30px;

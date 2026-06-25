@@ -18,6 +18,8 @@
     "@fontsource/inter": "^5.1.0",
     "@fontsource/jetbrains-mono": "^5.1.1",
     "@fontsource/plus-jakarta-sans": "^5.1.0",
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -37,19 +39,33 @@
     "appId": "com.accela.chat",
     "productName": "Accela Chat",
     "copyright": "© Accela",
-    "directories": { "output": "release", "buildResources": "build" },
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
     "files": ["dist/**/*", "electron/**/*", "package.json"],
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["universal"] },
-        { "target": "zip", "arch": ["universal"] }
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["universal"]
+        }
       ],
       "category": "public.app-category.business",
       "icon": "build/icon.png"
     },
-    "dmg": { "title": "Accela Chat ${version}" },
+    "dmg": {
+      "title": "Accela Chat ${version}"
+    },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [{
+        "target": "nsis",
+        "arch": ["x64"]
+      }],
       "icon": "build/icon.png"
     },
     "nsis": {
@@ -60,7 +76,12 @@
       "shortcutName": "Accela Chat"
     },
     "publish": [
-      { "provider": "github", "owner": "nicoaccela", "repo": "accela-chat" }
+      {
+        "provider": "github",
+        "owner": "nicoaccela",
+        "repo": "accela-chat",
+        "releaseType": "release"
+      }
     ]
   }
 }

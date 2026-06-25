@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Check, FileText } from "lucide-react";
 import type { Message } from "../lib/types";
 
-export default function MessageBubble({
+// Hoisted to avoid a fresh array allocation on every render. (The real re-parse
+// avoidance comes from React.memo skipping idle bubbles below — react-markdown's
+// default component re-parses on every render it actually runs, regardless of
+// plugin-array identity.)
+const REMARK_PLUGINS = [remarkGfm];
+
+function MessageBubble({
   message,
   streaming = false,
 }: {
@@ -50,15 +56,33 @@ export default function MessageBubble({
               </div>
             )}
           </>
+        ) : streaming ? (
+          // Live preview: render as PLAIN text (O(1) per frame) rather than
+          // re-parsing the whole growing reply's markdown every animation frame
+          // (which is O(n²) over the stream and the main jank source on weak
+          // hardware). The fully-formatted markdown appears the instant the turn
+          // completes and the persisted message renders through the branch below.
+          <div className="md" style={{ whiteSpace: "pre-wrap" }}>
+            {message.content}
+            <span className="cursor" />
+          </div>
         ) : (
           <div className="md">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={REMARK_PLUGINS}>
               {message.content || ""}
             </ReactMarkdown>
-            {streaming && <span className="cursor" />}
           </div>
         )}
       </div>
     </div>
   );
 }
+
+// Memoized: during streaming only the live bubble's props change each token, so
+// every already-rendered message skips re-rendering — and, crucially, skips
+// re-parsing its markdown — instead of the whole transcript re-parsing per token.
+// Safe because messages are immutable once created: every change replaces the
+// message object (fresh getConversation load or a spread), never mutates it in
+// place. An in-place edit feature would have to replace the object too, or memo
+// would show stale content.
+export default memo(MessageBubble);

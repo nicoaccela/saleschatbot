@@ -4,7 +4,6 @@ import App from "./App";
 
 // Bundle fonts locally (offline-friendly desktop app) — all the weights the
 // brand + UI use. Swappable at runtime via the --app-font CSS variable.
-import "@fontsource/plus-jakarta-sans/300.css";
 import "@fontsource/plus-jakarta-sans/400.css";
 import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
