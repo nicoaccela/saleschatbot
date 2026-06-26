@@ -52,6 +52,9 @@ export default function ChatPane({
   const [attachments, setAttachments] = useState<string[]>([]);
   const [showSkills, setShowSkills] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  // Messages typed while a turn is running — held and sent in order as each turn
+  // finishes (Claude Code-style queueing). Each keeps its own attachments snapshot.
+  const [queue, setQueue] = useState<{ id: string; text: string; attachments: string[] }[]>([]);
 
   // dragenter/leave fire for every child element, so count depth to know when
   // the cursor has truly left the pane.
@@ -95,6 +98,7 @@ export default function ChatPane({
     // Reset synchronously, BEFORE the async load, so any frame or delta still in
     // flight for the previous conversation can't bleed into the one we switch to.
     clearStream();
+    setQueue([]); // queued messages belong to the conversation we're leaving
     if (!conversationId) {
       setConv(null);
       return;
@@ -169,6 +173,17 @@ export default function ChatPane({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed]);
 
+  // Drain the queue: when the current turn finishes (busy → false) and messages
+  // are waiting, send the next one. runTurn flips busy back to true synchronously,
+  // so this fires exactly once per finished turn (no double-send).
+  useEffect(() => {
+    if (busy || queue.length === 0) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void runTurn(next.text, next.attachments);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, queue]);
+
   const ensureConv = useCallback(async (): Promise<Conversation> => {
     if (conv) return conv;
     const c = await window.accela.createConversation(model);
@@ -178,13 +193,13 @@ export default function ChatPane({
     return c;
   }, [conv, model, onAssign, onChanged]);
 
-  async function handleSend() {
-    if (busy) return;
-    const text = input.trim();
-    if (!text && attachments.length === 0) return;
+  // Run one turn end-to-end for the given text/attachments. Flips busy true
+  // synchronously (first line) so the drain effect can't double-fire.
+  async function runTurn(text: string, sentAttachments: string[]) {
+    setBusy(true);
+    clearStream();
 
     const current = await ensureConv();
-    const sentAttachments = attachments;
 
     const optimistic: Conversation = {
       ...current,
@@ -200,10 +215,6 @@ export default function ChatPane({
       ],
     };
     setConv(optimistic);
-    setInput("");
-    setAttachments([]);
-    setBusy(true);
-    clearStream();
 
     const appendError = (msg: string) =>
       setConv((c) =>
@@ -232,9 +243,29 @@ export default function ChatPane({
     }
   }
 
+  // Composer submit. While a turn is running, queue the message instead of
+  // blocking; the drain effect sends queued messages in order as turns finish.
+  function handleSend() {
+    const text = input.trim();
+    if (!text && attachments.length === 0) return;
+    const msg = { id: localId("q"), text, attachments };
+    setInput("");
+    setAttachments([]);
+    if (busy) {
+      setQueue((q) => [...q, msg]);
+    } else {
+      void runTurn(msg.text, msg.attachments);
+    }
+  }
+
+  function removeQueued(id: string) {
+    setQueue((q) => q.filter((m) => m.id !== id));
+  }
+
   async function handleStop() {
     const id = requestIdRef.current;
     setBusy(false);
+    setQueue([]); // an explicit stop halts everything, including queued messages
     clearStream();
     if (id) await window.accela.stop(id);
   }
@@ -381,6 +412,22 @@ export default function ChatPane({
           </div>
         )}
       </div>
+
+      {queue.length > 0 && (
+        <div className="queued-strip">
+          {queue.map((m) => (
+            <span className="queued-chip" key={m.id} title={m.text}>
+              <span className="queued-dot" />
+              <span className="queued-text">
+                {m.text ? (m.text.length > 60 ? m.text.slice(0, 60) + "…" : m.text) : `${m.attachments.length} attachment(s)`}
+              </span>
+              <button onClick={() => removeQueued(m.id)} title="Remove from queue">
+                <XIcon size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <Composer
         value={input}

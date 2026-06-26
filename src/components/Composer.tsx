@@ -68,7 +68,8 @@ export default function Composer({
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!busy && (value.trim() || attachments.length)) onSend();
+      // While a turn is running, Enter queues the next message (ChatPane handles it).
+      if (value.trim() || attachments.length) onSend();
     }
   }
 
@@ -135,7 +136,9 @@ export default function Composer({
         )}
       </div>
       <div className="composer-hint">
-        Powered by Claude Code · Enter to send, Shift+Enter for a new line
+        {busy
+          ? "Running… Enter queues your next message · Stop to halt"
+          : "Powered by Claude Code · Enter to send, Shift+Enter for a new line"}
       </div>
     </div>
   );

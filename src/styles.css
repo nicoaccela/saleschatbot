@@ -665,6 +665,50 @@ button {
   color: var(--muted);
 }
 
+/* ---- Queued messages (sent in order as each turn finishes) ------------- */
+.queued-strip {
+  max-width: 760px;
+  margin: 0 auto 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.queued-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px 4px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+}
+.queued-chip .queued-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+  flex: none;
+}
+.queued-chip .queued-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+.queued-chip button {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+.queued-chip button:hover { color: var(--ink); }
+
 /* ---- Slash command picker ---------------------------------------------- */
 .slash-menu {
   max-width: 760px;
