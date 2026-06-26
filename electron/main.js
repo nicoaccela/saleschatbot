@@ -6,6 +6,7 @@ const path = require("node:path");
 const store = require("./store");
 const { runTurn, checkClaude } = require("./claude");
 const { listAvailableCommands } = require("./commands");
+const skillsPack = require("./skills-pack");
 
 let mainWindow = null;
 
@@ -107,6 +108,14 @@ function registerIpc() {
     try { return listAvailableCommands(); } catch { return []; }
   });
 
+  // --- Bundled Accela skill pack (install / status) ---
+  ipcMain.handle("skills:status", () => skillsPack.status(app));
+  ipcMain.handle("skills:install", () => {
+    const res = skillsPack.install(app);
+    if (res && res.ok) store.setSettings({ skillsPackVersion: res.version });
+    return res;
+  });
+
   // --- Settings ---
   ipcMain.handle("settings:get", () => store.getSettings());
   ipcMain.handle("settings:set", (_e, patch) => store.setSettings(patch || {}));
@@ -180,8 +189,10 @@ function registerIpc() {
         `The user attached these local files/folders. Use your Read/Glob/Grep tools to inspect them as needed:\n${lines}\n\n${text}`;
     }
 
-    // Prime the system prompt with any skills the rep activated for this chat.
+    // Personalize with the rep profile, then prime with activated skills.
     let effectiveSystem = settings.systemPrompt;
+    const preamble = store.profilePreamble(settings.profile);
+    if (preamble) effectiveSystem = `${preamble}\n\n${effectiveSystem}`;
     const activeSkills = Array.isArray(conv.selectedSkills) ? conv.selectedSkills : [];
     if (activeSkills.length) {
       let registry = [];

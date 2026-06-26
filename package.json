@@ -79,8 +79,8 @@
       {
         "provider": "github",
         "owner": "nicoaccela",
-        "repo": "accela-chat",
-        "releaseType": "release"
+        "repo": "saleschatbot",
+        "releaseType": "draft"
       }
     ]
   }

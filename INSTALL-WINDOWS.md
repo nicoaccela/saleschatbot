@@ -43,7 +43,7 @@ Install whatever is missing:
 
 ```powershell
 cd $HOME
-git clone https://github.com/nicoaccela/accela-chat.git
+git clone https://github.com/nicoaccela/saleschatbot.git
 cd accela-chat
 bun install
 ```

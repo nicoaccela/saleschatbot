@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import SettingsPanel from "./components/SettingsPanel";
 import ChatPane from "./components/ChatPane";
 import SetupScreen from "./components/SetupScreen";
+import OnboardingFlow from "./components/OnboardingFlow";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
 const FONT_STACKS: Record<Settings["fontFamily"], string> = {
@@ -109,11 +110,17 @@ export default function App() {
     applyAppearance(next);
   }, []);
 
-  if (!settings) return null;
+  // Wait until we know both settings and Claude status before deciding what to show.
+  if (!settings || !claudeStatus) return null;
 
-  // Gate: Claude Code must be installed + logged in (this app is its front-end).
-  if (claudeStatus && !claudeStatus.ok) {
+  // Gate 1: Claude Code must be installed + logged in (this app is its front-end).
+  if (!claudeStatus.ok) {
     return <SetupScreen detectedPath={claudeStatus.path} onRecheck={recheckClaude} />;
+  }
+
+  // Gate 2: run-once onboarding — capture the rep profile the first time.
+  if (!settings.setup?.completedAt) {
+    return <OnboardingFlow settings={settings} onSave={saveSettings} />;
   }
 
   // Active conversation ids across all panes (for sidebar highlight).

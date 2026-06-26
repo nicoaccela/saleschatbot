@@ -34,12 +34,36 @@ export interface SlashCommand {
   source: string;
 }
 
+export interface RepProfile {
+  name: string;
+  preferredName: string;
+  title: string;
+  email: string;
+  phone: string;
+  regions: string[];
+  segment: string;
+  products: string[];
+  tone: string;
+  responseLength: string;
+  workTypes: string[];
+  customPrefs: string;
+  signature: string;
+  timezone: string;
+  usePersonalization: boolean;
+}
+
+export interface SetupState {
+  completedAt: string | null;
+}
+
 export interface Settings {
   model: string;
   fontFamily: "Plus Jakarta Sans" | "Inter" | "System";
   fontScale: number;
   toolMode: ToolMode;
   systemPrompt: string;
+  profile: RepProfile;
+  setup: SetupState;
 }
 
 export interface ChatEvent {

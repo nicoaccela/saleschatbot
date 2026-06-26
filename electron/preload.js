@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld("accela", {
   checkClaude: () => ipcRenderer.invoke("claude:check"),
   listCommands: () => ipcRenderer.invoke("commands:list"),
 
+  // bundled Accela skill pack
+  skillPackStatus: () => ipcRenderer.invoke("skills:status"),
+  installSkillPack: () => ipcRenderer.invoke("skills:install"),
+
   // settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),

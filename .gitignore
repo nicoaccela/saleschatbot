@@ -3,3 +3,8 @@ dist/
 release/
 *.log
 .DS_Store
+
+# Accela IP — the skill bundle is provisioned/distributed privately, NEVER
+# committed to this PUBLIC repo. (Public general skills, if any, are added
+# deliberately elsewhere after a genericization pass.)
+skills/
