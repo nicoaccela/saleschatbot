@@ -4,6 +4,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import ChatPane from "./components/ChatPane";
 import SetupScreen from "./components/SetupScreen";
 import OnboardingFlow from "./components/OnboardingFlow";
+import HelpPanel from "./components/HelpPanel";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
 const FONT_STACKS: Record<Settings["fontFamily"], string> = {
@@ -31,6 +32,8 @@ export default function App() {
   const [commands, setCommands] = useState<SlashCommand[]>([]);
   const [claudeStatus, setClaudeStatus] = useState<{ ok: boolean; version: string | null; path: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
   const [focusedPane, setFocusedPane] = useState("p0");
 
@@ -110,6 +113,18 @@ export default function App() {
     applyAppearance(next);
   }, []);
 
+  // Help action: open a fresh chat in the focused pane and seed the composer
+  // with the prompt that runs the matching setup skill (rep just hits send).
+  const runHelpAction = useCallback(
+    async (prompt: string) => {
+      const c = await window.accela.createConversation(settings?.model);
+      await refreshList();
+      setPaneConversation(focusedPane, c.id);
+      setSeed({ paneId: focusedPane, text: prompt });
+    },
+    [settings?.model, refreshList, focusedPane, setPaneConversation],
+  );
+
   // Wait until we know both settings and Claude status before deciding what to show.
   if (!settings || !claudeStatus) return null;
 
@@ -135,6 +150,7 @@ export default function App() {
         onNew={newChat}
         onDelete={deleteConversation}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenHelp={() => setShowHelp(true)}
       />
 
       <div className="panes">
@@ -152,6 +168,8 @@ export default function App() {
             onSplit={splitPane}
             onAssign={(id) => setPaneConversation(pane.id, id)}
             onChanged={refreshList}
+            seed={seed?.paneId === pane.id ? seed.text : null}
+            onSeedConsumed={() => setSeed(null)}
           />
         ))}
       </div>
@@ -164,6 +182,8 @@ export default function App() {
           claudeStatus={claudeStatus}
         />
       )}
+
+      {showHelp && <HelpPanel onAction={runHelpAction} onClose={() => setShowHelp(false)} />}
     </div>
   );
 }

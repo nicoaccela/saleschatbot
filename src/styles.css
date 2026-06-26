@@ -1201,3 +1201,48 @@ button {
   margin-top: 4px;
 }
 .hint-inline { font-weight: 400; color: var(--muted); font-size: 12px; }
+
+/* ---- Help & setup panel ------------------------------------------------- */
+.help-sheet { max-width: 460px; }
+.help-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.help-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  cursor: pointer;
+  color: var(--body);
+  font: inherit;
+  transition: border-color 0.12s ease, transform 0.06s ease;
+}
+.help-action:hover { border-color: var(--blue); }
+.help-action:active { transform: translateY(1px); }
+.help-action > svg { color: var(--blue); flex: 0 0 auto; margin-top: 1px; }
+.help-action span { display: flex; flex-direction: column; gap: 2px; }
+.help-action strong { font-size: 14px; }
+.help-action em { font-style: normal; font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+/* ---- Onboarding welcome step guide -------------------------------------- */
+.onb-steps-preview { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.step-preview { display: flex; align-items: flex-start; gap: 12px; }
+.step-preview .step-n {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.step-preview > div { display: flex; flex-direction: column; }
+.step-preview strong { font-size: 15px; color: var(--ink); }
+.step-preview em { font-style: normal; font-size: 13px; color: var(--muted); }
+.onb-note { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin: 8px 0 0; }

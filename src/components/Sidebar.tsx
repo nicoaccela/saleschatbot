@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Settings as SettingsIcon, Trash2, HelpCircle } from "lucide-react";
 import logoWhite from "../assets/accela-logo-white.svg";
 import type { ConversationMeta } from "../lib/types";
 
@@ -20,6 +20,7 @@ export default function Sidebar({
   onNew,
   onDelete,
   onOpenSettings,
+  onOpenHelp,
 }: {
   conversations: ConversationMeta[];
   activeIds: string[];
@@ -27,6 +28,7 @@ export default function Sidebar({
   onNew: () => void;
   onDelete: (id: string) => void;
   onOpenSettings: () => void;
+  onOpenHelp: () => void;
 }) {
   // Group conversations by recency for a Claude-app-like list.
   const groups: Record<string, ConversationMeta[]> = {};
@@ -84,6 +86,9 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-bottom">
+        <button className="side-btn" onClick={onOpenHelp}>
+          <HelpCircle size={17} /> Help &amp; setup
+        </button>
         <button className="side-btn" onClick={onOpenSettings}>
           <SettingsIcon size={17} /> Settings
         </button>

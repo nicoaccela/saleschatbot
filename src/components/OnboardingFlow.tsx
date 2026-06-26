@@ -79,7 +79,6 @@ export default function OnboardingFlow({
   }
   const removeRegion = (r: string) => setP((c) => ({ ...c, regions: c.regions.filter((x) => x !== r) }));
 
-  const canContinue = p.name.trim().length > 0 && p.email.trim().length > 0;
   const lenIdx = Math.max(0, LENGTHS.indexOf(p.responseLength || "Shortish"));
 
   async function finish() {
@@ -96,18 +95,27 @@ export default function OnboardingFlow({
     <div className="setup">
       <div className="setup-card onb-card">
         <img className="welcome-logo" src={logoDark} alt="Accela" />
-        <div className="onb-progress">Step {step + 1} of 4</div>
+        {step > 0 && (
+          <div className="onb-progress">{["", "Step 1 of 3 · Personalize", "Step 2 of 3 · Optimize", "Step 3 of 3 · Actualize"][step]}</div>
+        )}
 
         {step === 0 && (
           <>
             <h1>Welcome to Accela Chat</h1>
             <p className="onb-mission">
-              This is your own <strong>Claude Code cockpit for selling Accela</strong>. It runs on your
-              local Claude Code login — no API key, nothing routed through anyone else. It already knows the
-              Accela portfolio (Civic Platform, OpenCounter, ePermitHub, Novotx) and the 2026 brand, and comes
-              with sales skills — account briefs, MEDDPICC, deal strategy, pricing, and more.
+              Your Claude Code cockpit for selling Accela — it runs on your own Claude Code login, knows the
+              Accela portfolio + 2026 brand, and comes loaded with sales skills. Quick one-time setup:
             </p>
-            <p className="onb-mission">A quick one-time setup so it works the way <em>you</em> sell. About a minute.</p>
+            <div className="onb-steps-preview">
+              <div className="step-preview"><span className="step-n">1</span><div><strong>Personalize</strong><em>Who you are and your territory.</em></div></div>
+              <div className="step-preview"><span className="step-n">2</span><div><strong>Optimize</strong><em>Your tone, reply length, and how it works.</em></div></div>
+              <div className="step-preview"><span className="step-n">3</span><div><strong>Actualize</strong><em>Connect your brand kit &amp; workspace, then go.</em></div></div>
+            </div>
+            <p className="onb-note">
+              It's all optional, and the <strong>Help &amp; setup</strong> button (bottom of the sidebar) lets you
+              do any of it later. One requirement: Claude Code installed and <strong>signed in once via terminal</strong> —
+              the app checks for you and walks you through it if it's missing.
+            </p>
             <div className="onb-actions">
               <span className="spacer" />
               <button className="setup-btn" onClick={() => setStep(1)}>Get started <ArrowRight size={16} /></button>
@@ -118,14 +126,14 @@ export default function OnboardingFlow({
         {step === 1 && (
           <>
             <h1>Your profile</h1>
-            <p className="sub">Stable details that personalize every chat. Change them anytime in Settings.</p>
+            <p className="sub">All optional — fill in what helps; skip the rest. Change anything later in Settings.</p>
             <div className="onb-grid">
               <div className="field">
-                <label>Name <span className="req">*</span></label>
+                <label>Name</label>
                 <input type="text" value={p.name} onChange={(e) => set({ name: e.target.value })} placeholder="Jane Rivera" />
               </div>
               <div className="field">
-                <label>Email <span className="req">*</span></label>
+                <label>Email</label>
                 <input type="email" value={p.email} onChange={(e) => set({ email: e.target.value })} placeholder="jrivera@accela.com" />
               </div>
               <div className="field">
@@ -183,9 +191,8 @@ export default function OnboardingFlow({
             <div className="onb-actions">
               <button className="onb-back" onClick={() => setStep(0)}><ArrowLeft size={16} /> Back</button>
               <span className="spacer" />
-              <button className="setup-btn" disabled={!canContinue} onClick={() => setStep(2)}>Continue <ArrowRight size={16} /></button>
+              <button className="setup-btn" onClick={() => setStep(2)}>Continue <ArrowRight size={16} /></button>
             </div>
-            {!canContinue && <div className="range-val" style={{ textAlign: "right" }}>Name and email are required.</div>}
           </>
         )}
 
@@ -243,13 +250,12 @@ export default function OnboardingFlow({
           <>
             <h1>You're set, {p.preferredName || p.name.split(" ")[0] || "there"} 👋</h1>
             <p className="onb-mission">
-              Your cockpit is personalized{(p.regions || []).length ? ` for ${(p.regions || []).join(", ")}` : ""}
-              {(p.products || []).length ? ` and ${(p.products || []).join(", ")}` : ""}. From here it's yours to use and customize.
+              Your cockpit is personalized and ready. From here it's yours to use and customize.
             </p>
             <div className="onb-next">
-              <div className="onb-next-item"><Check size={15} /> Chat, split views, and your sales skills are ready — open the Skills menu.</div>
-              <div className="onb-next-item"><Check size={15} /> Set up your content: run <strong>Brand Guidelines Set Up</strong> and <strong>Workspace Set Up</strong> from the Skills menu to pull the brand kit and build your folders.</div>
-              <div className="onb-next-item"><Check size={15} /> Adjust your profile, model, and capabilities in Settings whenever.</div>
+              <div className="onb-next-item"><Check size={15} /><span>Your sales skills are ready — open the <strong>Skills</strong> menu to use them.</span></div>
+              <div className="onb-next-item"><Check size={15} /><span>Set up your brand kit and folders anytime from <strong>Help &amp; setup</strong>, at the bottom of the sidebar.</span></div>
+              <div className="onb-next-item"><Check size={15} /><span>Adjust your profile, model, and capabilities in <strong>Settings</strong> whenever.</span></div>
             </div>
             <div className="onb-actions">
               <button className="onb-back" onClick={() => setStep(2)}><ArrowLeft size={16} /> Back</button>

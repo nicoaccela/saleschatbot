@@ -27,6 +27,8 @@ export default function ChatPane({
   onSplit,
   onAssign,
   onChanged,
+  seed,
+  onSeedConsumed,
 }: {
   conversationId: string | null;
   settings: Settings;
@@ -39,6 +41,8 @@ export default function ChatPane({
   onSplit: () => void;
   onAssign: (id: string) => void;
   onChanged: () => void;
+  seed?: string | null;
+  onSeedConsumed?: () => void;
 }) {
   const [conv, setConv] = useState<Conversation | null>(null);
   const [input, setInput] = useState("");
@@ -155,6 +159,15 @@ export default function ChatPane({
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [streamText]);
+
+  // Seed the composer from a Help action (the rep reviews, then hits send).
+  useEffect(() => {
+    if (seed) {
+      setInput(seed);
+      onSeedConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
 
   const ensureConv = useCallback(async (): Promise<Conversation> => {
     if (conv) return conv;

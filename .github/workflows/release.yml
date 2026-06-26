@@ -33,6 +33,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # TypeScript is a devDependency, so tsc is present after npm install.
+      # This is the only gate runnable without a logged-in claude CLI, and it
+      # only fires at tag time, so it does not disturb day-to-day commits.
+      - name: Typecheck
+        run: npx --no-install tsc --noEmit
+
+      # Release-invariant backstop. Runs only if scripts/preflight.mjs exists;
+      # otherwise it is a no-op. If present and it fails, the build fails.
+      - name: Preflight (release invariants)
+        shell: bash
+        run: |
+          if [ -f scripts/preflight.mjs ]; then
+            node scripts/preflight.mjs
+          else
+            echo "preflight not present yet — skipping"
+          fi
+
       - name: Build renderer
         run: npm run build:renderer
 
@@ -40,3 +57,12 @@ jobs:
         run: npx --no-install electron-builder --${{ matrix.platform }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Gated mac signing + notarization. When these secrets exist,
+          # electron-builder signs and notarizes automatically; when they are
+          # absent they resolve empty and electron-builder skips signing and
+          # still produces an unsigned build.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
