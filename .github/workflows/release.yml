@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest # builds the universal .dmg + .zip
+          - os: macos-13 # pinned: electron-builder 25 dmg/codesign breaks on the macos-14/15 runners
             platform: mac
           - os: windows-latest # builds the .exe (NSIS) installer
             platform: win
@@ -57,6 +57,11 @@ jobs:
         run: npx --no-install electron-builder --${{ matrix.platform }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # v1 ships UNSIGNED. Without this, electron-builder attempts an ad-hoc
+          # codesign on the macOS runner and crashes ("not a file"). Skip signing
+          # discovery explicitly; an explicit CSC_LINK below still takes precedence
+          # once real certs are added.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           # Gated mac signing + notarization. When these secrets exist,
           # electron-builder signs and notarizes automatically; when they are
           # absent they resolve empty and electron-builder skips signing and
