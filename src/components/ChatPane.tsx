@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SplitSquareHorizontal, X as XIcon, Sparkles, Upload } from "lucide-react";
+import { SplitSquareHorizontal, X as XIcon, Sparkles, Upload, RotateCcw } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import Composer from "./Composer";
 import ModelPicker from "./ModelPicker";
@@ -216,9 +216,9 @@ export default function ChatPane({
     };
     setConv(optimistic);
 
-    const appendError = (msg: string) =>
+    const appendError = (msg: string, detail?: string | null) =>
       setConv((c) =>
-        c ? { ...c, messages: [...c.messages, { id: localId("err"), role: "assistant", content: `⚠️ ${msg}`, ts: new Date().toISOString() }] } : c,
+        c ? { ...c, messages: [...c.messages, { id: localId("err"), role: "assistant", content: msg, ts: new Date().toISOString(), isError: true, detail: detail || undefined }] } : c,
       );
 
     try {
@@ -233,7 +233,7 @@ export default function ChatPane({
       });
       const fresh = await window.accela.getConversation(current.id);
       if (fresh) setConv(fresh);
-      if (res?.error) appendError(res.error);
+      if (res?.error) appendError(res.error, res.rawError);
     } catch (err) {
       appendError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -260,6 +260,19 @@ export default function ChatPane({
 
   function removeQueued(id: string) {
     setQueue((q) => q.filter((m) => m.id !== id));
+  }
+
+  // After an error, re-arm the composer with the last user message so the rep
+  // can resend without retyping (their text was cleared on the failed send).
+  function tryAgain() {
+    const msgs = conv?.messages ?? [];
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === "user") {
+        setInput(msgs[i].content);
+        setAttachments(msgs[i].attachments ?? []);
+        break;
+      }
+    }
   }
 
   async function handleStop() {
@@ -398,6 +411,28 @@ export default function ChatPane({
                       message={{ id: "stream", role: "assistant", content: streamText, ts: PREVIEW_TS }}
                       streaming
                     />
+                  </div>
+                );
+              }
+              if (m.isError) {
+                return (
+                  <div className="row" key={m.id}>
+                    <div className="avatar assistant err">!</div>
+                    <div className="bubble error-card">
+                      <div className="who">Couldn't complete that</div>
+                      <div className="error-msg">{m.content}</div>
+                      {m.detail && (
+                        <details className="error-details">
+                          <summary>Show details</summary>
+                          <pre>{m.detail}</pre>
+                        </details>
+                      )}
+                      {!busy && (
+                        <button className="retry-btn" onClick={tryAgain}>
+                          <RotateCcw size={13} /> Try again
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               }

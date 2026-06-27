@@ -6,13 +6,15 @@ export interface PresetGroup {
   skills: string[];
 }
 
+// Groups list ONLY skills that actually ship in the pack (skills/_pack.json), so
+// the menu never shows a phantom row or dumps real skills into an "Other" bucket.
 export const PRESET_GROUPS: PresetGroup[] = [
   { group: "Deal Execution", skills: ["meddpicc", "deal-strategy", "discovery-prep", "objection-handling"] },
   { group: "Commercial", skills: ["pricing-model", "budget-finder", "business-case-roi"] },
   { group: "Product Knowledge", skills: ["product-knowledge"] },
-  { group: "Brand & Create", skills: ["accela-brand-2026", "accela-deck"] },
-  { group: "Account & Research", skills: ["account-brief", "sales-workspace", "pursuit-qualify", "salesforce-mcp"] },
-  { group: "System", skills: ["sales-command-center", "handoff"] },
+  { group: "Brand & Create", skills: ["accela-brand-2026", "accela-deck", "accela-content", "accela-voice"] },
+  { group: "Account & Research", skills: ["account-brief", "pursuit-qualify", "conference-mode"] },
+  { group: "Setup & Workspace", skills: ["brand-setup", "workspace-setup", "workspace-learn", "workspace-organize"] },
 ];
 
 // Pretty labels for skill names (fallback: title-case the slug).
@@ -27,12 +29,15 @@ export const SKILL_LABELS: Record<string, string> = {
   "product-knowledge": "Product Knowledge",
   "accela-brand-2026": "Accela Brand (2026)",
   "accela-deck": "Deck Builder",
+  "accela-content": "On-Brand Content",
+  "accela-voice": "Brand Voice",
   "account-brief": "Account Brief",
-  "sales-workspace": "Sales Workspace",
   "pursuit-qualify": "Pursuit Qualify",
-  "salesforce-mcp": "Salesforce",
-  "sales-command-center": "Command Center Build",
-  "handoff": "Session Handoff",
+  "conference-mode": "Conference Mode",
+  "brand-setup": "Install Brand Kit",
+  "workspace-setup": "Set Up Workspace",
+  "workspace-learn": "Learn My Files",
+  "workspace-organize": "Organize My Files",
 };
 
 export const RECOMMENDED_MAX = 3;

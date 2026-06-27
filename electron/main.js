@@ -242,7 +242,7 @@ function registerIpc() {
       }
     };
 
-    const result = await runTurn({
+    const runOpts = {
       prompt: effectivePrompt,
       model: useModel,
       resumeId: conv.claudeSessionId,
@@ -261,7 +261,18 @@ function registerIpc() {
           send("chat:event", { ...evt, requestId, conversationId: conv.id });
         }
       },
-    });
+    };
+
+    let result = await runTurn(runOpts);
+
+    // Self-heal a pruned/expired Claude session: drop the dead id and retry once
+    // fresh (no --resume) so the rep sees their answer, not a hard error. The
+    // renderer ignores the interim error event and just keeps streaming.
+    if (result.sessionNotFound && conv.claudeSessionId && !cancelled) {
+      const f0 = store.getConversation(conv.id);
+      if (f0) { f0.claudeSessionId = null; store.saveConversation(f0); }
+      result = await runTurn({ ...runOpts, resumeId: null });
+    }
 
     flushDeltas(); // emit any buffered tail before persisting + returning
     cancellers.delete(requestId);
@@ -288,6 +299,8 @@ function registerIpc() {
       usage: result.usage,
       cost: result.cost,
       error: result.error || null,
+      rawError: result.rawError || null,
+      errorKind: result.errorKind || null,
       title: fresh ? fresh.title : conv.title,
     };
     } catch (err) {

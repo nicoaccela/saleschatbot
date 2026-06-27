@@ -79,6 +79,25 @@ function checkClaude() {
   });
 }
 
+// Map raw CLI stderr to a calm, plain-English message + a kind the UI can act on.
+// `sessionNotFound` lets the caller transparently retry without --resume.
+function classifyError(raw) {
+  const s = (raw || "").toLowerCase();
+  if (/no conversation found|session (id )?not found|no such session|could not find.*session|resume.*not found|invalid session/.test(s)) {
+    return { kind: "session", sessionNotFound: true, friendly: "Your previous session expired — retrying fresh." };
+  }
+  if (/not logged in|unauthorized|authentication|please run.*login|invalid api key|\b401\b|no api key|run `claude`/.test(s)) {
+    return { kind: "auth", friendly: "You're not signed in to Claude Code. Open a terminal, run `claude`, sign in, then try again." };
+  }
+  if (/rate.?limit|\b429\b|overloaded|\b529\b|too many requests/.test(s)) {
+    return { kind: "rate", friendly: "Claude is busy or rate-limited right now. Give it a moment, then try again." };
+  }
+  if (/network|enotfound|etimedout|econnrefused|fetch failed|getaddrinfo|offline|dns/.test(s)) {
+    return { kind: "network", friendly: "Couldn't reach Claude — check your internet connection and try again." };
+  }
+  return { kind: "generic", friendly: "That didn't go through. Try again, and if it keeps happening, restart the app." };
+}
+
 /**
  * Run one conversational turn.
  * @param {object} opts
@@ -168,6 +187,7 @@ function runTurn(opts) {
     let cost = null;
     let stderrBuf = "";
     let stdoutRemainder = "";
+    let cancelled = false; // set when the user Stops — a clean exit, not an error
 
     // Write the prompt to stdin and close it.
     try {
@@ -250,12 +270,20 @@ function runTurn(opts) {
       }
 
       const finalText = assembled || resultText;
+      // A user Stop kills the child with SIGTERM (non-zero exit). That is NOT an
+      // error — resolve cleanly and keep whatever streamed so far.
+      if (cancelled) {
+        onEvent({ type: "done", sessionId, text: finalText, usage, cost, cancelled: true });
+        return resolve({ sessionId, text: finalText, usage, cost, cancelled: true });
+      }
       // A non-zero exit is a failure even if some partial text was flushed —
-      // surface it rather than returning incomplete output as success.
+      // surface it (classified into a calm, plain-English message) rather than
+      // returning incomplete output as success.
       if (code !== 0) {
-        const msg = stderrBuf.trim() || `Claude exited with code ${code}`;
-        onEvent({ type: "error", message: msg });
-        return resolve({ sessionId, text: finalText, usage, cost, error: msg });
+        const raw = stderrBuf.trim() || `Claude exited with code ${code}`;
+        const { kind, friendly, sessionNotFound } = classifyError(raw);
+        onEvent({ type: "error", message: friendly });
+        return resolve({ sessionId, text: finalText, usage, cost, error: friendly, rawError: raw, errorKind: kind, sessionNotFound: !!sessionNotFound });
       }
       onEvent({ type: "done", sessionId, text: finalText, usage, cost });
       resolve({ sessionId, text: finalText, usage, cost });
@@ -263,6 +291,7 @@ function runTurn(opts) {
 
     // Allow cancellation from the caller.
     opts.registerCanceller && opts.registerCanceller(() => {
+      cancelled = true;
       try { child.kill("SIGTERM"); } catch { /* ignore */ }
     });
   });

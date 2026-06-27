@@ -7,6 +7,8 @@ export interface Message {
   ts: string;
   model?: string;
   attachments?: string[];
+  isError?: boolean;   // render as a calm error card with a "Try again"
+  detail?: string;     // raw stderr, shown under a "Show details" disclosure
 }
 
 export interface ConversationMeta {
@@ -81,6 +83,9 @@ export interface SendResult {
   text?: string;
   sessionId?: string | null;
   error?: string | null;
+  rawError?: string | null;
+  errorKind?: string | null;
+  cancelled?: boolean;
   title?: string;
 }
 

@@ -803,6 +803,36 @@ button {
   }
 }
 
+/* ---- Recoverable error card -------------------------------------------- */
+.avatar.err { background: var(--orange); color: #fff; }
+.bubble.error-card { border: 1px solid #f3c7b3; background: #fdf4ef; }
+.error-card .error-msg { color: var(--ink); margin: 2px 0 8px; }
+.error-card .error-details { margin: 0 0 8px; }
+.error-card .error-details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.error-card .error-details pre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: var(--navy);
+  color: #eaf4fb;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+.error-card .retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--blue);
+  font-size: 13px;
+  cursor: pointer;
+}
+.error-card .retry-btn:hover { border-color: var(--blue); background: #eef6fd; }
+
 /* ---- Slash command picker ---------------------------------------------- */
 .slash-menu {
   max-width: 760px;
