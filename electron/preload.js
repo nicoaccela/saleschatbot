@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld("accela", {
   // file / folder picker
   pickPaths: (opts) => ipcRenderer.invoke("paths:pick", opts || {}),
 
+  // open a url in the system browser
+  openExternal: (url) => ipcRenderer.invoke("open:external", url),
+
   // chat
   sendMessage: (payload) => ipcRenderer.invoke("chat:send", payload),
   stop: (requestId) => ipcRenderer.invoke("chat:stop", requestId),

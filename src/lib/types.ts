@@ -107,6 +107,7 @@ declare global {
         attachments?: string[];
       }) => Promise<SendResult>;
       stop: (requestId: string) => Promise<boolean>;
+      openExternal: (url: string) => Promise<void>;
       onChatEvent: (cb: (e: ChatEvent) => void) => () => void;
     };
   }

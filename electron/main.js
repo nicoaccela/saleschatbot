@@ -58,6 +58,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      webviewTag: true, // the in-app link viewer renders pages in a <webview>
     },
   });
 
@@ -75,6 +76,18 @@ function createWindow() {
       return { action: "deny" };
     }
     return { action: "allow" };
+  });
+
+  // A link must never replace the app itself. If anything tries to navigate the
+  // main window to an external page, cancel it and hand it to the system browser.
+  // (The in-app link viewer uses a <webview> with its own webContents, so it is
+  // unaffected by this guard.)
+  mainWindow.webContents.on("will-navigate", (e, url) => {
+    const isAppUrl = (devUrl && url.startsWith(devUrl)) || url.startsWith("file://");
+    if (!isAppUrl) {
+      e.preventDefault();
+      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    }
   });
 }
 
@@ -110,6 +123,11 @@ function registerIpc() {
 
   // --- Bundled Accela skill pack (install / status) ---
   ipcMain.handle("skills:status", () => skillsPack.status(app));
+
+  // Open a URL in the system browser (right-click a link, or "Open in browser").
+  ipcMain.handle("open:external", (_e, url) => {
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) shell.openExternal(url);
+  });
   ipcMain.handle("skills:install", () => {
     const res = skillsPack.install(app);
     if (res && res.ok) store.setSettings({ skillsPackVersion: res.version });

@@ -709,6 +709,64 @@ button {
 }
 .queued-chip button:hover { color: var(--ink); }
 
+/* ---- In-app link viewer ------------------------------------------------ */
+.link-view {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+}
+.link-view-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 14px 10px; /* top room clears the mac traffic lights (matches sidebar) */
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  -webkit-app-region: drag;
+}
+.lv-btn,
+.lv-close { -webkit-app-region: no-drag; }
+.lv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.lv-btn:hover { border-color: var(--blue); color: var(--blue); }
+.lv-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+.lv-close {
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+.lv-close:hover { background: var(--line); color: var(--ink); }
+.link-webview {
+  flex: 1;
+  border: 0;
+  width: 100%;
+}
+
 /* ---- Slash command picker ---------------------------------------------- */
 .slash-menu {
   max-width: 760px;

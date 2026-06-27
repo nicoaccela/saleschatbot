@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Check, FileText } from "lucide-react";
 import type { Message } from "../lib/types";
@@ -9,6 +9,36 @@ import type { Message } from "../lib/types";
 // default component re-parses on every render it actually runs, regardless of
 // plugin-array identity.)
 const REMARK_PLUGINS = [remarkGfm];
+
+// Links in chat: left-click opens the in-app browser overlay (App listens for
+// "accela:open-link", so you never lose the chat); right-click — or a non-http
+// scheme like mailto — goes straight to the system browser.
+const MD_COMPONENTS: Components = {
+  a({ href, children }) {
+    return (
+      <a
+        href={href}
+        onClick={(e) => {
+          if (!href) return;
+          e.preventDefault();
+          if (/^https?:\/\//i.test(href)) {
+            window.dispatchEvent(new CustomEvent("accela:open-link", { detail: href }));
+          } else {
+            window.accela.openExternal(href);
+          }
+        }}
+        onContextMenu={(e) => {
+          if (href && /^https?:\/\//i.test(href)) {
+            e.preventDefault();
+            window.accela.openExternal(href);
+          }
+        }}
+      >
+        {children}
+      </a>
+    );
+  },
+};
 
 function MessageBubble({
   message,
@@ -68,7 +98,7 @@ function MessageBubble({
           </div>
         ) : (
           <div className="md">
-            <ReactMarkdown remarkPlugins={REMARK_PLUGINS}>
+            <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MD_COMPONENTS}>
               {message.content || ""}
             </ReactMarkdown>
           </div>

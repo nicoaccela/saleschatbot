@@ -5,6 +5,7 @@ import ChatPane from "./components/ChatPane";
 import SetupScreen from "./components/SetupScreen";
 import OnboardingFlow from "./components/OnboardingFlow";
 import HelpPanel from "./components/HelpPanel";
+import LinkView from "./components/LinkView";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
 const FONT_STACKS: Record<Settings["fontFamily"], string> = {
@@ -36,6 +37,9 @@ export default function App() {
   const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
   const [focusedPane, setFocusedPane] = useState("p0");
+  // In-app browser overlay: a chat link click dispatches "accela:open-link"; we
+  // hold the URL here and render <LinkView> over the chat (which stays mounted).
+  const [linkUrl, setLinkUrl] = useState<string | null>(null);
 
   const paneSeq = useRef(0);
 
@@ -48,6 +52,12 @@ export default function App() {
       window.accela.checkClaude().then((r) => setClaudeStatus({ ok: r.ok, version: r.version, path: r.path }));
       window.accela.listCommands().then(setCommands);
     })();
+  }, []);
+
+  useEffect(() => {
+    const onOpenLink = (e: Event) => setLinkUrl((e as CustomEvent<string>).detail);
+    window.addEventListener("accela:open-link", onOpenLink as EventListener);
+    return () => window.removeEventListener("accela:open-link", onOpenLink as EventListener);
   }, []);
 
   const recheckClaude = useCallback(async () => {
@@ -184,6 +194,8 @@ export default function App() {
       )}
 
       {showHelp && <HelpPanel onAction={runHelpAction} onClose={() => setShowHelp(false)} />}
+
+      {linkUrl && <LinkView url={linkUrl} onClose={() => setLinkUrl(null)} />}
     </div>
   );
 }
