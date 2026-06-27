@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-13 # pinned: electron-builder 25 dmg/codesign breaks on the macos-14/15 runners
+          - os: macos-latest # always-available runner; the codesign crash is handled by CSC_IDENTITY_AUTO_DISCOVERY=false below (macos-13 was pinned earlier but queues for hours with no free runner)
             platform: mac
           - os: windows-latest # builds the .exe (NSIS) installer
             platform: win
