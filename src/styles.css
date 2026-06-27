@@ -767,6 +767,42 @@ button {
   width: 100%;
 }
 
+/* ---- "Working…" activity indicator (pre-first-token) ------------------- */
+.working {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.working-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.working-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--blue);
+  display: inline-block;
+  animation: working-pulse 1.2s ease-in-out infinite;
+}
+.working-dots i:nth-child(2) { animation-delay: 0.16s; }
+.working-dots i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes working-pulse {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Respect reduced-motion: stop the continuous animations (a11y + low-end perf). */
+@media (prefers-reduced-motion: reduce) {
+  .working-dots i,
+  .cursor,
+  .spin {
+    animation: none !important;
+  }
+}
+
 /* ---- Slash command picker ---------------------------------------------- */
 .slash-menu {
   max-width: 760px;

@@ -404,10 +404,21 @@ export default function ChatPane({
               return <MessageBubble key={m.id} message={m} />;
             })}
             {busy && !showStreaming && (
-              <MessageBubble
-                message={{ id: "thinking", role: "assistant", content: "", ts: PREVIEW_TS }}
-                streaming
-              />
+              // A live "working" row instead of a blank bubble — a skill run can
+              // take 30-90s before the first token, and an empty bubble reads as
+              // "frozen" to a non-technical rep.
+              <div className="row">
+                <div className="avatar assistant">A</div>
+                <div className="bubble">
+                  <div className="who">Accela Assistant</div>
+                  <div className="working">
+                    {activeSkills.length > 0
+                      ? `Running ${skillLabel(activeSkills[0])}`
+                      : "Accela Assistant is working"}
+                    <span className="working-dots"><i /><i /><i /></span>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
