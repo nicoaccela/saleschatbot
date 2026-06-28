@@ -32,21 +32,26 @@ if [ -n "$app" ]; then
   echo "Installed $(basename "$app"). First launch: right-click it -> Open -> Open (one-time Gatekeeper)."
 fi
 
-# 2) Skills — unzip the Accela sales kit into ~/.claude/skills.
+# 2) Skills — prefer the kit attached to the release (zero-step); else a Downloads fallback.
 skills="$HOME/.claude/skills"
 zip="$HOME/Downloads/Accela Chat Sales Kit.zip"
-if [ -f "$zip" ]; then
-  echo ""
-  echo "Installing sales skills..."
+kit_url="$(curl -fsSL "$api" | grep -oE '"browser_download_url": *"[^"]+"' | sed 's/.*"browser_download_url": *"//; s/"$//' | grep -iE 'kit' | grep -iE '\.zip$' | head -1)"
+if [ -n "$kit_url" ]; then
+  echo ""; echo "Installing sales skills..."
+  mkdir -p "$skills"
+  curl -fsSL "$kit_url" -o "$tmp/kit.zip"
+  ditto -x -k "$tmp/kit.zip" "$skills"
+  echo "Sales skills installed to $skills"
+elif [ -f "$zip" ]; then
+  echo ""; echo "Installing sales skills from your Downloads..."
   mkdir -p "$skills"
   ditto -x -k "$zip" "$skills"
   echo "Sales skills installed to $skills"
 else
   echo ""
   echo "ONE MORE STEP for your skills:"
-  echo "  1. From your Accela Chat folder, download 'Accela Chat Sales Kit.zip' to your Downloads."
-  echo "  2. Re-run this command (or run the line below) to finish:"
-  echo "       ditto -x -k \"$zip\" \"$skills\""
+  echo "  Download 'Accela Chat Sales Kit.zip' from the Accela Chat OneDrive folder to Downloads, then run:"
+  echo "    ditto -x -k \"$zip\" \"$skills\""
 fi
 
 echo ""
