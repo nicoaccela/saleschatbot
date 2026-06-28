@@ -17,8 +17,15 @@ case "$arch" in
 esac
 echo "Finding the latest Accela Chat release (arch: $want)..."
 api="https://api.github.com/repos/$repo/releases/latest"
-url="$(curl -fsSL "$api" | grep -oE '"browser_download_url": *"[^"]+"' | sed 's/.*"browser_download_url": *"//; s/"$//' | grep -iE "darwin|mac|${want}" | grep -iE '\.zip$' | head -1)"
-[ -z "$url" ] && url="$(curl -fsSL "$api" | grep -oE '"browser_download_url": *"[^"]+"' | sed 's/.*"browser_download_url": *"//; s/"$//' | grep -iE '\.zip$' | head -1)"
+# All .zip asset URLs (the mac app ships as a .zip; .zip.blockmap is excluded).
+zips="$(curl -fsSL "$api" | grep -oE '"browser_download_url": *"[^"]+\.zip"' | sed 's/.*"browser_download_url": *"//; s/"$//')"
+# arm64 build is the one with 'arm64' in the name; the Intel build is the mac zip WITHOUT it.
+if [ "$want" = "arm64" ]; then
+  url="$(printf '%s\n' "$zips" | grep -i 'mac' | grep -i 'arm64' | head -1)"
+else
+  url="$(printf '%s\n' "$zips" | grep -i 'mac' | grep -vi 'arm64' | head -1)"
+fi
+[ -z "$url" ] && url="$(printf '%s\n' "$zips" | grep -i 'mac' | head -1)"
 if [ -z "$url" ]; then echo "No macOS (.zip) build in the latest release yet."; exit 1; fi
 tmp="$(mktemp -d)"
 echo "Downloading $(basename "$url")..."
