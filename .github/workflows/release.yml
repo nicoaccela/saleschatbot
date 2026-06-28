@@ -57,17 +57,11 @@ jobs:
         run: npx --no-install electron-builder --${{ matrix.platform }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # v1 ships UNSIGNED. Without this, electron-builder attempts an ad-hoc
-          # codesign on the macOS runner and crashes ("not a file"). Skip signing
-          # discovery explicitly; an explicit CSC_LINK below still takes precedence
-          # once real certs are added.
+          # v1 ships UNSIGNED. Do NOT pass empty CSC_LINK / APPLE_* here: GitHub sets
+          # an ABSENT secret to "" (not unset), and electron-builder treats an empty
+          # CSC_LINK as a cert path -> resolves to the repo dir -> "<dir> not a file"
+          # crash on the mac runner (this broke v0.1.0-v0.1.3). So omit them entirely
+          # and just disable signing discovery for a clean unsigned build. When a real
+          # Apple Developer ID cert exists, add the signing secrets back WITH non-empty
+          # values (see docs/notarization-and-signing.md).
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          # Gated mac signing + notarization. When these secrets exist,
-          # electron-builder signs and notarizes automatically; when they are
-          # absent they resolve empty and electron-builder skips signing and
-          # still produces an unsigned build.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
