@@ -1,7 +1,8 @@
-import { useMemo } from "react";
-import { X, Check } from "lucide-react";
+import { useMemo, useState } from "react";
+import { X, Check, Pencil } from "lucide-react";
 import type { SlashCommand } from "../lib/types";
 import { PRESET_GROUPS, RECOMMENDED_MAX, skillLabel } from "../lib/presets";
+import SkillEditor from "./SkillEditor";
 
 export default function SkillsPanel({
   commands,
@@ -18,6 +19,8 @@ export default function SkillsPanel({
   onClose: () => void;
   convTitle: string;
 }) {
+  const [editing, setEditing] = useState<string | null>(null);
+
   const byName = useMemo(
     () => new Map(commands.map((c) => [c.name, c])),
     [commands],
@@ -37,50 +40,61 @@ export default function SkillsPanel({
   const overMax = selected.length > RECOMMENDED_MAX;
 
   return (
-    <div className="overlay" onMouseDown={onClose}>
-      <div className="sheet" onMouseDown={(e) => e.stopPropagation()}>
-        <button className="close-x" onClick={onClose}>
-          <X size={20} />
-        </button>
-        <h2>Skills</h2>
-        <p className="sub">
-          Activate skills for <strong>{convTitle}</strong>. They prime the
-          assistant — no slash needed. {selected.length} selected
-          {overMax && (
-            <span className="warn-text"> · we recommend ≤ {RECOMMENDED_MAX}</span>
-          )}
-          {selected.length > 0 && (
-            <button className="link-btn" onClick={onClear}>
-              Clear
-            </button>
-          )}
-        </p>
+    <>
+      <div className="overlay" onMouseDown={onClose}>
+        <div className="sheet" onMouseDown={(e) => e.stopPropagation()}>
+          <button className="close-x" onClick={onClose}>
+            <X size={20} />
+          </button>
+          <h2>Skills</h2>
+          <p className="sub">
+            Activate skills for <strong>{convTitle}</strong>. They prime the
+            assistant — no slash needed. {selected.length} selected
+            {overMax && (
+              <span className="warn-text"> · we recommend ≤ {RECOMMENDED_MAX}</span>
+            )}
+            {selected.length > 0 && (
+              <button className="link-btn" onClick={onClear}>
+                Clear
+              </button>
+            )}
+          </p>
 
-        {grouped.map((g) => (
-          <div className="skill-group" key={g.group}>
-            <div className="skill-group-label">{g.group}</div>
-            {g.items.map((name) => {
-              const cmd = byName.get(name);
-              const on = selected.includes(name);
-              return (
-                <button
-                  key={name}
-                  className={"skill-card" + (on ? " on" : "")}
-                  onClick={() => onToggle(name)}
-                >
-                  <span className={"skill-check" + (on ? " on" : "")}>
-                    {on && <Check size={12} />}
-                  </span>
-                  <span className="skill-text">
-                    <span className="skill-name">{skillLabel(name)}</span>
-                    <span className="skill-desc">{cmd?.description}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+          {grouped.map((g) => (
+            <div className="skill-group" key={g.group}>
+              <div className="skill-group-label">{g.group}</div>
+              {g.items.map((name) => {
+                const cmd = byName.get(name);
+                const on = selected.includes(name);
+                return (
+                  <div key={name} className={"skill-card" + (on ? " on" : "")}>
+                    <button className="skill-card-main" onClick={() => onToggle(name)}>
+                      <span className={"skill-check" + (on ? " on" : "")}>
+                        {on && <Check size={12} />}
+                      </span>
+                      <span className="skill-text">
+                        <span className="skill-name">{skillLabel(name)}</span>
+                        <span className="skill-desc">{cmd?.description}</span>
+                      </span>
+                    </button>
+                    {cmd?.kind === "skill" && (
+                      <button
+                        className="icon-btn skill-edit"
+                        title="View / edit skill file"
+                        onClick={() => setEditing(name)}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {editing && <SkillEditor name={editing} onClose={() => setEditing(null)} />}
+    </>
   );
 }

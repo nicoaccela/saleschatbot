@@ -31,6 +31,10 @@ contextBridge.exposeInMainWorld("accela", {
   importMcpServers: () => ipcRenderer.invoke("mcp:import"),
   mcpSupport: () => ipcRenderer.invoke("mcp:support"),
 
+  // skill files (view / edit)
+  readSkill: (name) => ipcRenderer.invoke("skill:read", name),
+  writeSkill: (name, content) => ipcRenderer.invoke("skill:write", { name, content }),
+
   // conversations
   listConversations: () => ipcRenderer.invoke("conv:list"),
   getConversation: (id) => ipcRenderer.invoke("conv:get", id),

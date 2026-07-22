@@ -3,11 +3,13 @@
 
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
+const os = require("node:os");
 const store = require("./store");
 const { checkClaude, checkMcpSupport } = require("./claude");
 const { assembleSystemPrompt, runStep } = require("./engine");
 const mcp = require("./mcp");
-const { listAvailableCommands } = require("./commands");
+const { listAvailableCommands, resolveSkillDir } = require("./commands");
 const skillsPack = require("./skills-pack");
 
 let mainWindow = null;
@@ -147,6 +149,42 @@ function registerIpc() {
   ipcMain.handle("mcp:import", () => { try { return mcp.importFromClaude(); } catch { return []; } });
   ipcMain.handle("mcp:support", () => checkMcpSupport());
 
+  // --- Skill files (view / edit the raw SKILL.md) ---
+  // Path is confined to ~/.claude/skills/<name>/SKILL.md; a resolve() containment
+  // check blocks any traversal regardless of what `name` contains.
+  const skillPath = (name) => {
+    if (typeof name !== "string" || !name) return null;
+    const base = path.join(os.homedir(), ".claude", "skills");
+    // Resolve the display name to the real directory slug (frontmatter name may
+    // differ from the folder), then confine to the skills dir.
+    const dir = resolveSkillDir(name);
+    const p = path.join(base, dir, "SKILL.md");
+    if (!path.resolve(p).startsWith(path.resolve(base) + path.sep)) return null;
+    return p;
+  };
+  ipcMain.handle("skill:read", (_e, name) => {
+    const p = skillPath(name);
+    if (!p) return { ok: false, content: "", path: "", error: "Invalid skill name." };
+    try {
+      return { ok: true, content: fs.readFileSync(p, "utf8"), path: p };
+    } catch (err) {
+      return { ok: false, content: "", path: p, error: (err && err.message) || "Could not read this skill." };
+    }
+  });
+  ipcMain.handle("skill:write", (_e, payload) => {
+    const { name, content } = payload || {};
+    const p = skillPath(name);
+    if (!p) return { ok: false, error: "Invalid skill name." };
+    if (typeof content !== "string") return { ok: false, error: "No content to save." };
+    if (!fs.existsSync(p)) return { ok: false, error: "Skill file not found." };
+    try {
+      fs.writeFileSync(p, content);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err && err.message) || "Could not save this skill." };
+    }
+  });
+
   // --- Conversations ---
   ipcMain.handle("conv:list", () => store.listConversations());
   ipcMain.handle("conv:get", (_e, id) => store.getConversation(id));
@@ -231,7 +269,13 @@ function registerIpc() {
     // App-managed MCP servers → the CLI's --mcp-config map (enabled only).
     // claude.js only injects these under Sales-cockpit (agent) mode, so a
     // Safe/chat turn can never hang on an MCP approval prompt.
-    const mcpMap = mcp.mcpConfigMap(store.getMcpServers());
+    const mcpRegistry = store.getMcpServers();
+    const mcpMap = mcp.mcpConfigMap(mcpRegistry);
+    // Per-connection permission toggles: tools the rep switched off on any
+    // enabled server become --disallowed-tools for the turn.
+    const disabledTools = mcpRegistry
+      .filter((s) => s && s.enabled !== false && Array.isArray(s.disabledTools))
+      .flatMap((s) => s.disabledTools);
 
     requestId = store.uid();
     send("chat:event", { type: "start", requestId, conversationId: conv.id });
@@ -260,6 +304,7 @@ function registerIpc() {
       toolMode: settings.toolMode,
       mcpServers: mcpMap,
       strictMcp: !!settings.mcpStrict,
+      disabledTools,
       registerCanceller: (fn) => cancellers.set(requestId, () => { cancelled = true; fn(); }),
       onEvent: (evt) => {
         // Once stopped, drop the dying child's trailing output instead of

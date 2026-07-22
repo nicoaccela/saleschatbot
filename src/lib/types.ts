@@ -74,6 +74,8 @@ export interface McpServerConfig {
   access?: "read" | "write" | "read/write";
   note?: string;
   catalogId?: string;                 // provenance if added from the catalog
+  tools?: string[];                   // tool names discovered by the last Test probe
+  disabledTools?: string[];           // tools the rep switched OFF (fed to --disallowed-tools)
 }
 
 export interface McpSupport {
@@ -134,6 +136,8 @@ declare global {
       testMcpServer: (server: Partial<McpServerConfig>) => Promise<McpTestResult>;
       importMcpServers: () => Promise<Partial<McpServerConfig>[]>;
       mcpSupport: () => Promise<McpSupport>;
+      readSkill: (name: string) => Promise<{ ok: boolean; content: string; path: string; error?: string }>;
+      writeSkill: (name: string, content: string) => Promise<{ ok: boolean; error?: string }>;
       listConversations: () => Promise<ConversationMeta[]>;
       getConversation: (id: string) => Promise<Conversation | null>;
       createConversation: (model?: string) => Promise<Conversation>;

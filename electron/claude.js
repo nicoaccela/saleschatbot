@@ -146,6 +146,7 @@ function runTurn(opts) {
     toolMode = "readonly",
     mcpServers = null,   // { <name>: {command,args,env} | {type,url,headers} } — enabled servers only
     strictMcp = false,   // also pass --strict-mcp-config (ignore the rep's ambient config)
+    disabledTools = [],  // per-connection tool names the rep switched off (→ --disallowed-tools)
     onEvent = () => {},
   } = opts;
 
@@ -201,18 +202,22 @@ function runTurn(opts) {
   }
 
   // Tool policy.
+  const extraDisabled = (Array.isArray(disabledTools) ? disabledTools : []).filter(Boolean);
   if (toolMode === "chat") {
     // Pure conversation — disallow all tools so it behaves like claude.ai chat.
-    args.push("--disallowed-tools", ...MUTATING_TOOLS, "Read", "Grep", "Glob", "WebSearch", "WebFetch");
+    args.push("--disallowed-tools", ...MUTATING_TOOLS, "Read", "Grep", "Glob", "WebSearch", "WebFetch", ...extraDisabled);
   } else if (toolMode === "readonly") {
     // Can read files / search the web, but never mutate. Read-only tools don't
     // trigger interactive permission prompts, so the GUI won't hang.
-    args.push("--disallowed-tools", ...MUTATING_TOOLS);
+    args.push("--disallowed-tools", ...MUTATING_TOOLS, ...extraDisabled);
   } else if (toolMode === "agent" || toolMode === "full") {
     // Sales cockpit: skills, slash-commands and the agent fleet (Task) can all
     // run. bypassPermissions so their file/bash steps don't stall in the GUI's
     // non-interactive print mode.
     args.push("--permission-mode", "bypassPermissions");
+    // Honor per-connection permission toggles even under bypass: --disallowed-tools
+    // removes tools from the available set (upstream of permission evaluation).
+    if (extraDisabled.length) args.push("--disallowed-tools", ...extraDisabled);
   }
 
   const cleanup = () => {

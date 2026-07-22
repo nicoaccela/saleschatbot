@@ -92,4 +92,23 @@ function listAvailableCommands() {
   return deduped;
 }
 
-module.exports = { listAvailableCommands };
+// Map a skill's DISPLAY name (which may come from frontmatter `name:`) back to
+// its on-disk directory slug, so the editor reads/writes the right SKILL.md even
+// when frontmatter name != directory name. Falls back to the literal name.
+function resolveSkillDir(name) {
+  const base = path.join(os.homedir(), ".claude", "skills");
+  // Exact directory match wins (the common case — no scan needed).
+  try { if (fs.statSync(path.join(base, name, "SKILL.md")).isFile()) return name; } catch { /* fall through */ }
+  let entries = [];
+  try { entries = fs.readdirSync(base, { withFileTypes: true }); } catch { return name; }
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    try {
+      const fm = parseFrontmatter(fs.readFileSync(path.join(base, e.name, "SKILL.md"), "utf8"));
+      if ((fm.name || e.name) === name) return e.name;
+    } catch { /* not a skill dir */ }
+  }
+  return name;
+}
+
+module.exports = { listAvailableCommands, resolveSkillDir };

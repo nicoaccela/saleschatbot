@@ -203,6 +203,7 @@ export default function App() {
           settings={settings}
           onSaveSettings={saveSettings}
           onClose={() => setShowMcp(false)}
+          onSetupViaClaude={(prompt) => { setShowMcp(false); runHelpAction(prompt); }}
         />
       )}
 

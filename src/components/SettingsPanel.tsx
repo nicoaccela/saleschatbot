@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { Settings } from "../lib/types";
+import type { Settings, RepProfile } from "../lib/types";
 import { MODELS } from "../lib/models";
 
 const FONTS: { id: Settings["fontFamily"]; label: string }[] = [
@@ -31,8 +31,25 @@ export default function SettingsPanel({
   claudeStatus: { ok: boolean; version: string | null } | null;
 }) {
   const [local, setLocal] = useState<Settings>(settings);
+  // Territory/products edit as raw text so typing a comma/space to start a second
+  // value isn't stripped mid-keystroke; committed to string[] on blur.
+  const [regionsText, setRegionsText] = useState((settings.profile.regions || []).join(", "));
+  const [productsText, setProductsText] = useState((settings.profile.products || []).join(", "));
 
-  useEffect(() => setLocal(settings), [settings]);
+  useEffect(() => {
+    setLocal(settings);
+    setRegionsText((settings.profile.regions || []).join(", "));
+    setProductsText((settings.profile.products || []).join(", "));
+  }, [settings]);
+
+  const toList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+  // Flush in-progress territory/products text on close, so a backdrop click made
+  // before the input blurs never drops the edit.
+  function handleClose() {
+    onSave({ profile: { ...local.profile, regions: toList(regionsText), products: toList(productsText) } });
+    onClose();
+  }
 
   function update(patch: Partial<Settings>) {
     const next = { ...local, ...patch };
@@ -40,12 +57,20 @@ export default function SettingsPanel({
     onSave(patch); // apply live
   }
 
+  // Send the FULL merged profile (store merges it in) so a single field edit is
+  // type-safe and never drops the rest of the profile.
+  function updateProfile(patch: Partial<RepProfile>) {
+    const profile = { ...local.profile, ...patch };
+    setLocal({ ...local, profile });
+    onSave({ profile });
+  }
+
   const enabledMcp = (local.mcpServers || []).filter((s) => s.enabled !== false).length;
 
   return (
-    <div className="overlay" onMouseDown={onClose}>
+    <div className="overlay" onMouseDown={handleClose}>
       <div className="sheet" onMouseDown={(e) => e.stopPropagation()}>
-        <button className="close-x" onClick={onClose}>
+        <button className="close-x" onClick={handleClose}>
           <X size={20} />
         </button>
         <h2>Settings</h2>
@@ -115,6 +140,69 @@ export default function SettingsPanel({
               You have {enabledMcp} MCP connection{enabledMcp === 1 ? "" : "s"} — they only run in Sales cockpit mode.
             </div>
           )}
+        </div>
+
+        <div className="section-label">Your profile</div>
+        <p className="range-val" style={{ marginTop: -4, marginBottom: 12 }}>
+          Personalizes every answer — territory, focus, and how you like things written. Edit anytime.
+        </p>
+
+        <div className="field">
+          <label>Name</label>
+          <input type="text" value={local.profile.name}
+            onChange={(e) => updateProfile({ name: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Title</label>
+          <input type="text" value={local.profile.title}
+            onChange={(e) => updateProfile({ title: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Email</label>
+          <input type="email" value={local.profile.email}
+            onChange={(e) => updateProfile({ email: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Territory <span className="hint-inline">comma-separated, e.g. NV, UT, CO</span></label>
+          <input type="text" value={regionsText}
+            onChange={(e) => setRegionsText(e.target.value)}
+            onBlur={() => updateProfile({ regions: toList(regionsText) })} />
+        </div>
+        <div className="field">
+          <label>Segment</label>
+          <div className="seg">
+            <button className={local.profile.segment === "0-100K" ? "on" : ""} onClick={() => updateProfile({ segment: "0-100K" })}>0–100K (AE)</button>
+            <button className={local.profile.segment === "100K+" ? "on" : ""} onClick={() => updateProfile({ segment: "100K+" })}>100K+ (AD)</button>
+          </div>
+        </div>
+        <div className="field">
+          <label>Products <span className="hint-inline">comma-separated</span></label>
+          <input type="text" value={productsText}
+            onChange={(e) => setProductsText(e.target.value)}
+            onBlur={() => updateProfile({ products: toList(productsText) })} />
+        </div>
+        <div className="field">
+          <label>Focus / bio <span className="hint-inline">what you sell, how you work, anything to keep in mind</span></label>
+          <textarea value={local.profile.customPrefs}
+            onChange={(e) => updateProfile({ customPrefs: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Preferred tone</label>
+          <input type="text" value={local.profile.tone}
+            onChange={(e) => updateProfile({ tone: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Email signature</label>
+          <textarea value={local.profile.signature}
+            onChange={(e) => updateProfile({ signature: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Personalization</label>
+          <div className="seg">
+            <button className={local.profile.usePersonalization ? "on" : ""} onClick={() => updateProfile({ usePersonalization: true })}>On</button>
+            <button className={!local.profile.usePersonalization ? "on" : ""} onClick={() => updateProfile({ usePersonalization: false })}>Off</button>
+          </div>
+          <div className="range-val">When on, your profile is woven into every answer.</div>
         </div>
 
         <div className="field">

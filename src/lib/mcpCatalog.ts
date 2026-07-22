@@ -1,18 +1,9 @@
-// Curated catalog of MCP servers a sales rep is likely to connect. These are
-// generic third-party products (not Accela IP) shown as one-click "Connect"
-// cards; clicking prefills the add-form so the rep just completes auth. Servers
-// that don't exist yet (e.g. Gong's MCP) ship as disabled "coming soon" stubs.
-//
-// Where a public launch command is well-known it's prefilled; otherwise the
-// entry is a template the rep finishes. Secrets go in env (stored in userData).
-
-import type { McpTransport } from "./types";
-
-export interface CatalogEnvKey {
-  key: string;
-  label: string;
-  placeholder?: string;
-}
+// Curated catalog of tools a sales rep connects. ZERO manual config: clicking
+// "Connect" opens a chat seeded with `setupPrompt`, and Claude Code does all the
+// wiring (checks existing config, runs `claude mcp add`, walks any sign-in) — the
+// rep never gathers a token, command, or ID. Servers that don't exist yet (Gong)
+// ship as disabled "coming soon" stubs. A hidden "Advanced" path still allows a
+// manual server for power users.
 
 export interface CatalogEntry {
   id: string;
@@ -21,48 +12,51 @@ export interface CatalogEntry {
   blurb: string;
   access: "read" | "write" | "read/write";
   available: boolean;      // false = coming soon (Connect disabled)
-  transport: McpTransport;
-  command?: string;
-  args?: string[];
-  url?: string;
-  envKeys?: CatalogEnvKey[];
+  setupPrompt: string;     // seeded into a chat; Claude does the wiring end-to-end
   note?: string;
-  docsUrl?: string;
 }
+
+// A shared preamble so every setup turn behaves the same way: idempotent, no
+// homework for the rep, confirm at the end.
+const RULES =
+  " First check my existing Claude Code MCP configuration; if this connection is already set up, just confirm it and tell me what it can do. " +
+  "If it is not set up, add it for me and walk me through any sign-in in the browser. " +
+  "Do not ask me to find tokens, IDs, commands, or file paths myself — figure those out or guide me click-by-click. " +
+  "When it's connected, run a quick check and confirm what you can now see.";
 
 export const MCP_CATALOG: CatalogEntry[] = [
   {
-    id: "gong",
-    name: "gong",
-    label: "Gong",
-    blurb: "Call recordings, transcripts & deal intelligence.",
-    access: "read",
-    available: false,
-    transport: "http",
-    note: "Connect once your Gong workspace enables its MCP endpoint. This is a placeholder until then.",
-    docsUrl: "https://www.gong.io",
-  },
-  {
-    id: "salesforce",
-    name: "salesforce",
-    label: "Salesforce",
-    blurb: "Accounts, opportunities & MEDDPICC fields (read-only today).",
+    id: "apple-mail",
+    name: "apple-mail",
+    label: "Apple Mail",
+    blurb: "Read & search the mail already on this Mac.",
     access: "read",
     available: true,
-    transport: "stdio",
-    command: "",
-    note: "Read-only for now. If you already use a Salesforce MCP in Claude Code, use “Import from Claude Code” instead of filling this in.",
+    setupPrompt:
+      "Connect my Apple Mail so you can read and search my messages, using the Mail app on this Mac (a local read-only bridge is fine — no server or password needed)." +
+      RULES,
+  },
+  {
+    id: "apple-calendar",
+    name: "apple-calendar",
+    label: "Apple Calendar",
+    blurb: "Your meetings — the trigger for prep & sweeps.",
+    access: "read",
+    available: true,
+    setupPrompt:
+      "Connect my Apple Calendar so you can read my meetings, using the Calendar app on this Mac (a local read-only bridge via EventKit/AppleScript is fine — no account login needed)." +
+      RULES,
   },
   {
     id: "google-calendar",
     name: "google-calendar",
     label: "Google Calendar",
-    blurb: "Your meetings — the trigger for prep & sweeps.",
+    blurb: "Google Workspace meetings for prep & sweeps.",
     access: "read",
     available: true,
-    transport: "stdio",
-    command: "",
-    note: "Point this at your Google Calendar MCP server command, then Connect.",
+    setupPrompt:
+      "Connect my Google Calendar so you can read my meetings. Set up the right MCP server and take me through the Google sign-in in the browser." +
+      RULES,
   },
   {
     id: "gmail",
@@ -71,20 +65,42 @@ export const MCP_CATALOG: CatalogEntry[] = [
     blurb: "Read threads & draft follow-ups.",
     access: "read/write",
     available: true,
-    transport: "stdio",
-    command: "",
-    note: "Set the command for your Gmail MCP server.",
+    setupPrompt:
+      "Connect my Gmail so you can read threads and draft follow-ups. Set up the right MCP server and take me through the Google sign-in." +
+      RULES,
   },
   {
     id: "outlook",
     name: "outlook",
     label: "Outlook / Microsoft 365",
-    blurb: "Calendar + mail for M365 shops.",
+    blurb: "Calendar + mail for Microsoft shops.",
     access: "read",
     available: true,
-    transport: "stdio",
-    command: "",
-    note: "Set the command for your Microsoft Graph / Outlook MCP server.",
+    setupPrompt:
+      "Connect my Outlook / Microsoft 365 calendar and mail. Set up the right Microsoft Graph MCP server and take me through the Microsoft sign-in." +
+      RULES,
+  },
+  {
+    id: "salesforce",
+    name: "salesforce",
+    label: "Salesforce",
+    blurb: "Accounts, opps & MEDDPICC (read-only today).",
+    access: "read",
+    available: true,
+    setupPrompt:
+      "Connect my Salesforce (read-only is fine) so you can look up accounts, opportunities and MEDDPICC fields. If I already have a Salesforce MCP configured in Claude Code, just use that." +
+      RULES,
+  },
+  {
+    id: "pursuit",
+    name: "pursuit",
+    label: "Pursuit",
+    blurb: "Municipal lead & signal intelligence.",
+    access: "read",
+    available: true,
+    setupPrompt:
+      "Connect my Pursuit account so you can search municipal entities, contacts and signals. If I already have a Pursuit MCP configured in Claude Code, just use that." +
+      RULES,
   },
   {
     id: "slack",
@@ -93,36 +109,41 @@ export const MCP_CATALOG: CatalogEntry[] = [
     blurb: "Post updates & pull channel context.",
     access: "read/write",
     available: true,
-    transport: "stdio",
-    command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-slack"],
-    envKeys: [
-      { key: "SLACK_BOT_TOKEN", label: "Bot token", placeholder: "xoxb-…" },
-      { key: "SLACK_TEAM_ID", label: "Team ID", placeholder: "T…" },
-    ],
-    note: "Verify the package name for your environment before connecting.",
+    setupPrompt:
+      "Connect my Slack so you can read channel context and post updates. Set up the right MCP server and take me through the Slack sign-in / app authorization." +
+      RULES,
   },
   {
     id: "zoom",
     name: "zoom",
     label: "Zoom",
-    blurb: "Meeting recordings & transcripts (a Teams alternative).",
+    blurb: "Meeting recordings & transcripts (Teams alt).",
     access: "read",
     available: true,
-    transport: "stdio",
-    command: "",
-    note: "A transcript source for calls that aren't on Gong.",
+    setupPrompt:
+      "Connect my Zoom so you can read meeting recordings and transcripts. Set up the right MCP server and take me through the Zoom sign-in." +
+      RULES,
   },
   {
     id: "exa",
     name: "exa",
-    label: "Exa web search",
-    blurb: "Fresh web research for account & signal work.",
+    label: "Web search (Exa)",
+    blurb: "Fresh web research for accounts & signals.",
     access: "read",
     available: true,
-    transport: "stdio",
-    command: "npx",
-    args: ["-y", "exa-mcp-server"],
-    envKeys: [{ key: "EXA_API_KEY", label: "API key", placeholder: "exa_…" }],
+    setupPrompt:
+      "Connect Exa web search so you can run fresh web research. Set up the MCP server; if it needs an API key, tell me exactly where to get one and set it up with me." +
+      RULES,
+  },
+  {
+    id: "gong",
+    name: "gong",
+    label: "Gong",
+    blurb: "Call recordings, transcripts & deal intel.",
+    access: "read",
+    available: false,
+    setupPrompt:
+      "Connect my Gong so you can read call recordings, transcripts and deal intelligence, and take me through the Gong sign-in." + RULES,
+    note: "Available once your Gong workspace enables its MCP endpoint.",
   },
 ];

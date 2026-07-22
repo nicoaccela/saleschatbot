@@ -1528,3 +1528,53 @@ button {
 }
 .btn-sm:hover:not(:disabled) { border-color: var(--blue); background: #eef6fd; }
 .btn-sm:disabled { opacity: 0.5; cursor: default; }
+
+/* ---- MCP: connection item + permissions + advanced ---- */
+.mcp-item { margin-bottom: 8px; }
+.mcp-item .mcp-row { margin-bottom: 0; }
+.mcp-perms {
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  margin: -3px 0 0;
+  padding: 10px 12px 12px;
+  background: var(--panel);
+}
+.perms-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.perms-actions { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.perm-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.perm-name {
+  font-size: 13px; color: var(--body); font-family: var(--mono);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.icon-btn.on { color: var(--blue); border-color: var(--blue); }
+
+.disclosure {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 13px; font-weight: 600;
+  padding: 8px 0; margin-top: 14px;
+}
+.disclosure:hover { color: var(--ink); }
+.advanced-body { border-top: 1px solid var(--line); padding-top: 6px; }
+
+/* ---- Skill card: clickable main area + an edit icon ---- */
+.skill-card { align-items: center; }
+.skill-card-main {
+  flex: 1; min-width: 0;
+  display: flex; gap: 10px; align-items: flex-start;
+  background: none; border: none; text-align: left; cursor: pointer;
+  padding: 0; font: inherit; color: inherit;
+}
+.skill-edit { flex: 0 0 auto; height: 30px; width: 30px; }
+
+/* ---- Skill editor (raw SKILL.md) ---- */
+.skill-editor-overlay { z-index: 60; }
+.skill-editor { width: 660px; max-width: 96vw; display: flex; flex-direction: column; }
+.skill-editor-area {
+  flex: 1; min-height: 55vh; width: 100%;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.55; color: var(--body);
+  resize: vertical; margin-bottom: 12px;
+}
+.skill-editor-area:focus { outline: none; border-color: var(--blue); }
