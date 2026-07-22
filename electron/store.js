@@ -42,6 +42,12 @@ const DEFAULT_SETTINGS = {
     "competitive-intel, deck-smith). When a request matches one, use it. If the " +
     "user types a /command, run it.",
 
+  // App-managed MCP servers (Gong, Salesforce, Calendar, Slack…). Array of
+  // McpServerConfig; enabled ones are injected into each turn's --mcp-config.
+  // Lives here in userData only — never bundled, never written to ~/.claude.json.
+  mcpServers: [],
+  mcpStrict: false,              // lock turns to ONLY app-managed servers (--strict-mcp-config)
+
   // Rep profile + preferences captured in the run-once onboarding; personalizes every turn.
   profile: {
     name: "", preferredName: "", title: "", email: "", phone: "",
@@ -87,6 +93,23 @@ function setSettings(patch) {
   if (patch && patch.setup) next.setup = { ...cur.setup, ...patch.setup };
   fs.writeFileSync(settingsPath, JSON.stringify(next, null, 2));
   return next;
+}
+
+// ---- MCP servers ----------------------------------------------------------
+// Stored inside settings.json under `mcpServers`. A dedicated setter re-reads
+// the whole settings blob then writes the full array back, so it never races
+// with (or gets clobbered by) a concurrent profile/setup patch from setSettings.
+
+function getMcpServers() {
+  const s = getSettings();
+  return Array.isArray(s.mcpServers) ? s.mcpServers : [];
+}
+
+function setMcpServers(servers) {
+  const cur = getSettings();
+  cur.mcpServers = Array.isArray(servers) ? servers : [];
+  fs.writeFileSync(settingsPath, JSON.stringify(cur, null, 2));
+  return cur.mcpServers;
 }
 
 // ---- Conversations --------------------------------------------------------
@@ -211,6 +234,8 @@ module.exports = {
   uid,
   getSettings,
   setSettings,
+  getMcpServers,
+  setMcpServers,
   profilePreamble,
   DEFAULT_SETTINGS,
   createConversation,

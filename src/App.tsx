@@ -5,6 +5,7 @@ import ChatPane from "./components/ChatPane";
 import SetupScreen from "./components/SetupScreen";
 import OnboardingFlow from "./components/OnboardingFlow";
 import HelpPanel from "./components/HelpPanel";
+import McpPanel from "./components/McpPanel";
 import LinkView from "./components/LinkView";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
@@ -34,6 +35,7 @@ export default function App() {
   const [claudeStatus, setClaudeStatus] = useState<{ ok: boolean; version: string | null; path: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMcp, setShowMcp] = useState(false);
   const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
   const [focusedPane, setFocusedPane] = useState("p0");
@@ -161,6 +163,7 @@ export default function App() {
         onDelete={deleteConversation}
         onOpenSettings={() => setShowSettings(true)}
         onOpenHelp={() => setShowHelp(true)}
+        onOpenMcp={() => setShowMcp(true)}
       />
 
       <div className="panes">
@@ -194,6 +197,14 @@ export default function App() {
       )}
 
       {showHelp && <HelpPanel onAction={runHelpAction} onClose={() => setShowHelp(false)} />}
+
+      {showMcp && (
+        <McpPanel
+          settings={settings}
+          onSaveSettings={saveSettings}
+          onClose={() => setShowMcp(false)}
+        />
+      )}
 
       {linkUrl && <LinkView url={linkUrl} onClose={() => setLinkUrl(null)} />}
     </div>

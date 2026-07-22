@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld("accela", {
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),
 
+  // MCP servers (app-managed registry)
+  listMcpServers: () => ipcRenderer.invoke("mcp:list"),
+  saveMcpServers: (servers) => ipcRenderer.invoke("mcp:save", servers),
+  testMcpServer: (server) => ipcRenderer.invoke("mcp:test", server),
+  importMcpServers: () => ipcRenderer.invoke("mcp:import"),
+  mcpSupport: () => ipcRenderer.invoke("mcp:support"),
+
   // conversations
   listConversations: () => ipcRenderer.invoke("conv:list"),
   getConversation: (id) => ipcRenderer.invoke("conv:get", id),

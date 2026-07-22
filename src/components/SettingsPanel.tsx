@@ -40,6 +40,8 @@ export default function SettingsPanel({
     onSave(patch); // apply live
   }
 
+  const enabledMcp = (local.mcpServers || []).filter((s) => s.enabled !== false).length;
+
   return (
     <div className="overlay" onMouseDown={onClose}>
       <div className="sheet" onMouseDown={(e) => e.stopPropagation()}>
@@ -108,6 +110,11 @@ export default function SettingsPanel({
           <div className="range-val">
             {TOOL_MODES.find((t) => t.id === local.toolMode)?.hint}
           </div>
+          {enabledMcp > 0 && local.toolMode !== "agent" && (
+            <div className="range-val warn-text">
+              You have {enabledMcp} MCP connection{enabledMcp === 1 ? "" : "s"} — they only run in Sales cockpit mode.
+            </div>
+          )}
         </div>
 
         <div className="field">

@@ -58,6 +58,35 @@ export interface SetupState {
   completedAt: string | null;
 }
 
+export type McpTransport = "stdio" | "sse" | "http";
+
+export interface McpServerConfig {
+  id: string;
+  name: string;                       // the server name; tools appear as mcp__<name>__<tool>
+  transport: McpTransport;
+  command?: string;                   // stdio
+  args?: string[];                    // stdio
+  env?: Record<string, string>;       // stdio (tokens/keys live here — userData only)
+  url?: string;                       // http | sse
+  headers?: Record<string, string>;   // http | sse
+  enabled: boolean;
+  status?: "connected" | "not-connected" | "error";
+  access?: "read" | "write" | "read/write";
+  note?: string;
+  catalogId?: string;                 // provenance if added from the catalog
+}
+
+export interface McpSupport {
+  mcpConfig: boolean;
+  strict: boolean;
+}
+
+export interface McpTestResult {
+  ok: boolean;
+  tools: string[];
+  error: string | null;
+}
+
 export interface Settings {
   model: string;
   fontFamily: "Plus Jakarta Sans" | "Inter" | "System";
@@ -66,6 +95,8 @@ export interface Settings {
   systemPrompt: string;
   profile: RepProfile;
   setup: SetupState;
+  mcpServers?: McpServerConfig[];
+  mcpStrict?: boolean;
 }
 
 export interface ChatEvent {
@@ -98,6 +129,11 @@ declare global {
       listCommands: () => Promise<SlashCommand[]>;
       getSettings: () => Promise<Settings>;
       setSettings: (patch: Partial<Settings>) => Promise<Settings>;
+      listMcpServers: () => Promise<McpServerConfig[]>;
+      saveMcpServers: (servers: McpServerConfig[]) => Promise<McpServerConfig[]>;
+      testMcpServer: (server: Partial<McpServerConfig>) => Promise<McpTestResult>;
+      importMcpServers: () => Promise<Partial<McpServerConfig>[]>;
+      mcpSupport: () => Promise<McpSupport>;
       listConversations: () => Promise<ConversationMeta[]>;
       getConversation: (id: string) => Promise<Conversation | null>;
       createConversation: (model?: string) => Promise<Conversation>;

@@ -4,7 +4,9 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("node:path");
 const store = require("./store");
-const { runTurn, checkClaude } = require("./claude");
+const { checkClaude, checkMcpSupport } = require("./claude");
+const { assembleSystemPrompt, runStep } = require("./engine");
+const mcp = require("./mcp");
 const { listAvailableCommands } = require("./commands");
 const skillsPack = require("./skills-pack");
 
@@ -138,6 +140,13 @@ function registerIpc() {
   ipcMain.handle("settings:get", () => store.getSettings());
   ipcMain.handle("settings:set", (_e, patch) => store.setSettings(patch || {}));
 
+  // --- MCP servers (app-managed registry) ---
+  ipcMain.handle("mcp:list", () => store.getMcpServers());
+  ipcMain.handle("mcp:save", (_e, servers) => store.setMcpServers(servers || []));
+  ipcMain.handle("mcp:test", (_e, server) => mcp.testServer(server || {}));
+  ipcMain.handle("mcp:import", () => { try { return mcp.importFromClaude(); } catch { return []; } });
+  ipcMain.handle("mcp:support", () => checkMcpSupport());
+
   // --- Conversations ---
   ipcMain.handle("conv:list", () => store.listConversations());
   ipcMain.handle("conv:get", (_e, id) => store.getConversation(id));
@@ -207,21 +216,22 @@ function registerIpc() {
         `The user attached these local files/folders. Use your Read/Glob/Grep tools to inspect them as needed:\n${lines}\n\n${text}`;
     }
 
-    // Personalize with the rep profile, then prime with activated skills.
-    let effectiveSystem = settings.systemPrompt;
-    const preamble = store.profilePreamble(settings.profile);
-    if (preamble) effectiveSystem = `${preamble}\n\n${effectiveSystem}`;
+    // Personalize with the rep profile, then prime with activated skills. The
+    // assembly lives in engine.js so chat, workflows, and sweeps stay identical.
     const activeSkills = Array.isArray(conv.selectedSkills) ? conv.selectedSkills : [];
-    if (activeSkills.length) {
-      let registry = [];
-      try { registry = listAvailableCommands(); } catch { /* ignore */ }
-      const byName = new Map(registry.map((c) => [c.name, c]));
-      const lines = activeSkills
-        .map((n) => { const c = byName.get(n); return c ? `- /${c.name}: ${c.description}` : `- /${n}`; })
-        .join("\n");
-      effectiveSystem +=
-        `\n\nThe rep has activated these skills for this conversation — prioritize them and invoke directly when relevant:\n${lines}`;
-    }
+    let registry = [];
+    if (activeSkills.length) { try { registry = listAvailableCommands(); } catch { /* ignore */ } }
+    const effectiveSystem = assembleSystemPrompt({
+      baseSystem: settings.systemPrompt,
+      preamble: store.profilePreamble(settings.profile),
+      activeSkills,
+      registry,
+    });
+
+    // App-managed MCP servers → the CLI's --mcp-config map (enabled only).
+    // claude.js only injects these under Sales-cockpit (agent) mode, so a
+    // Safe/chat turn can never hang on an MCP approval prompt.
+    const mcpMap = mcp.mcpConfigMap(store.getMcpServers());
 
     requestId = store.uid();
     send("chat:event", { type: "start", requestId, conversationId: conv.id });
@@ -248,6 +258,8 @@ function registerIpc() {
       resumeId: conv.claudeSessionId,
       systemPrompt: effectiveSystem,
       toolMode: settings.toolMode,
+      mcpServers: mcpMap,
+      strictMcp: !!settings.mcpStrict,
       registerCanceller: (fn) => cancellers.set(requestId, () => { cancelled = true; fn(); }),
       onEvent: (evt) => {
         // Once stopped, drop the dying child's trailing output instead of
@@ -263,16 +275,18 @@ function registerIpc() {
       },
     };
 
-    let result = await runTurn(runOpts);
-
-    // Self-heal a pruned/expired Claude session: drop the dead id and retry once
-    // fresh (no --resume) so the rep sees their answer, not a hard error. The
-    // renderer ignores the interim error event and just keeps streaming.
-    if (result.sessionNotFound && conv.claudeSessionId && !cancelled) {
-      const f0 = store.getConversation(conv.id);
-      if (f0) { f0.claudeSessionId = null; store.saveConversation(f0); }
-      result = await runTurn({ ...runOpts, resumeId: null });
-    }
+    // Run the turn through the shared engine, which transparently self-heals a
+    // pruned/expired Claude session (drops the dead id, retries once fresh) so
+    // the rep sees their answer, not a hard error. The renderer ignores the
+    // interim error event and just keeps streaming.
+    const result = await runStep({
+      ...runOpts,
+      isCancelled: () => cancelled,
+      onSessionExpired: () => {
+        const f0 = store.getConversation(conv.id);
+        if (f0) { f0.claudeSessionId = null; store.saveConversation(f0); }
+      },
+    });
 
     flushDeltas(); // emit any buffered tail before persisting + returning
     cancellers.delete(requestId);

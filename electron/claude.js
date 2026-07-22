@@ -79,6 +79,34 @@ function checkClaude() {
   });
 }
 
+// Does the installed CLI support MCP config injection? Older builds reject
+// --mcp-config / --strict-mcp-config and would fail the spawn, so the UI gates
+// the MCP feature on this. Probed once from `claude --help` and cached.
+let _mcpSupport = null;
+function checkMcpSupport() {
+  if (_mcpSupport) return Promise.resolve(_mcpSupport);
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(CLAUDE_BIN, ["--help"], { env: process.env, shell: NEEDS_SHELL });
+    } catch {
+      _mcpSupport = { mcpConfig: false, strict: false };
+      return resolve(_mcpSupport);
+    }
+    let out = "";
+    child.stdout.on("data", (d) => (out += d.toString()));
+    child.stderr.on("data", (d) => (out += d.toString()));
+    child.on("error", () => { _mcpSupport = { mcpConfig: false, strict: false }; resolve(_mcpSupport); });
+    child.on("close", () => {
+      _mcpSupport = {
+        mcpConfig: /--mcp-config/.test(out),
+        strict: /--strict-mcp-config/.test(out),
+      };
+      resolve(_mcpSupport);
+    });
+  });
+}
+
 // Map raw CLI stderr to a calm, plain-English message + a kind the UI can act on.
 // `sessionNotFound` lets the caller transparently retry without --resume.
 function classifyError(raw) {
@@ -116,6 +144,8 @@ function runTurn(opts) {
     resumeId = null,
     systemPrompt = "",
     toolMode = "readonly",
+    mcpServers = null,   // { <name>: {command,args,env} | {type,url,headers} } — enabled servers only
+    strictMcp = false,   // also pass --strict-mcp-config (ignore the rep's ambient config)
     onEvent = () => {},
   } = opts;
 
@@ -139,8 +169,34 @@ function runTurn(opts) {
       fs.writeFileSync(systemPromptFile, systemPrompt.trim());
       args.push("--append-system-prompt-file", systemPromptFile);
     } catch {
+      // writeFileSync opens with O_CREAT, so a mid-write failure may have already
+      // created the file — unlink it before falling back so it isn't orphaned.
+      try { if (systemPromptFile) fs.unlinkSync(systemPromptFile); } catch { /* ignore */ }
       systemPromptFile = null;
       args.push("--append-system-prompt", systemPrompt.trim());
+    }
+  }
+
+  // MCP servers: write the app-managed set to a temp --mcp-config file for this
+  // turn (cleaned up when it ends). We only inject MCP under agent/full mode:
+  // MCP tools would otherwise hang forever on the interactive approval prompt in
+  // -p mode (no bypass, no timeout). Non-strict by default so the rep's ambient
+  // ~/.claude.json servers still work; --strict-mcp-config locks the turn to
+  // ONLY the app-managed set.
+  let mcpConfigFile = null;
+  const mcpMap = mcpServers && typeof mcpServers === "object" ? mcpServers : null;
+  const mcpAllowed = toolMode === "agent" || toolMode === "full";
+  if (mcpMap && Object.keys(mcpMap).length && mcpAllowed) {
+    try {
+      mcpConfigFile = path.join(os.tmpdir(), `accela-mcp-${crypto.randomUUID()}.json`);
+      fs.writeFileSync(mcpConfigFile, JSON.stringify({ mcpServers: mcpMap }));
+      args.push("--mcp-config", mcpConfigFile);
+      if (strictMcp) args.push("--strict-mcp-config");
+    } catch {
+      // Reclaim a partially-created temp file (O_CREAT) on a write failure so it
+      // isn't orphaned in tmpdir; cleanup() only unlinks a still-referenced path.
+      try { if (mcpConfigFile) fs.unlinkSync(mcpConfigFile); } catch { /* ignore */ }
+      mcpConfigFile = null;
     }
   }
 
@@ -163,6 +219,10 @@ function runTurn(opts) {
     if (systemPromptFile) {
       try { fs.unlinkSync(systemPromptFile); } catch { /* ignore */ }
       systemPromptFile = null;
+    }
+    if (mcpConfigFile) {
+      try { fs.unlinkSync(mcpConfigFile); } catch { /* ignore */ }
+      mcpConfigFile = null;
     }
   };
 
@@ -297,4 +357,4 @@ function runTurn(opts) {
   });
 }
 
-module.exports = { runTurn, checkClaude, CLAUDE_BIN };
+module.exports = { runTurn, checkClaude, checkMcpSupport, CLAUDE_BIN };
