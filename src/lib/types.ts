@@ -199,6 +199,7 @@ export interface Settings {
   setup: SetupState;
   mcpServers?: McpServerConfig[];
   mcpStrict?: boolean;
+  gettingStartedSeen?: boolean;
 }
 
 export interface ChatEvent {

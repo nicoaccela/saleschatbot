@@ -9,6 +9,7 @@ import McpPanel from "./components/McpPanel";
 import WorkflowsPanel from "./components/WorkflowsPanel";
 import SchedulesPanel from "./components/SchedulesPanel";
 import FleetPanel from "./components/FleetPanel";
+import GettingStarted from "./components/GettingStarted";
 import LinkView from "./components/LinkView";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
@@ -42,6 +43,7 @@ export default function App() {
   const [showWorkflows, setShowWorkflows] = useState(false);
   const [showSchedules, setShowSchedules] = useState(false);
   const [showFleet, setShowFleet] = useState(false);
+  const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
   const [focusedPane, setFocusedPane] = useState("p0");
@@ -56,6 +58,7 @@ export default function App() {
       const s = await window.accela.getSettings();
       setSettings(s);
       applyAppearance(s);
+      if (!s.gettingStartedSeen) setShowGettingStarted(true);
       setConversations(await window.accela.listConversations());
       window.accela.checkClaude().then((r) => setClaudeStatus({ ok: r.ok, version: r.version, path: r.path }));
       window.accela.listCommands().then(setCommands);
@@ -205,7 +208,13 @@ export default function App() {
         />
       )}
 
-      {showHelp && <HelpPanel onAction={runHelpAction} onClose={() => setShowHelp(false)} />}
+      {showHelp && (
+        <HelpPanel
+          onAction={runHelpAction}
+          onClose={() => setShowHelp(false)}
+          onGettingStarted={() => { setShowHelp(false); setShowGettingStarted(true); }}
+        />
+      )}
 
       {showMcp && (
         <McpPanel
@@ -223,6 +232,23 @@ export default function App() {
       {showSchedules && <SchedulesPanel onClose={() => setShowSchedules(false)} />}
 
       {showFleet && <FleetPanel onClose={() => setShowFleet(false)} />}
+
+      {showGettingStarted && (
+        <GettingStarted
+          isMac={window.accela.platform === "darwin"}
+          onConnect={() => { setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true }); setShowMcp(true); }}
+          onMail={() => {
+            setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true });
+            const mac = window.accela.platform === "darwin";
+            runHelpAction(mac
+              ? "Connect my Apple Mail so you can read and search the messages on this Mac (a local read-only bridge is fine — no account or password needed). Check my Claude Code config first; set it up if it isn't already, then confirm what you can see. Don't ask me to find any tokens or paths."
+              : "Connect my Outlook / Microsoft 365 mail and calendar. Set up the right MCP server and walk me through the Microsoft sign-in, then confirm what you can see. Don't ask me to gather any tokens or IDs.");
+          }}
+          onWorkflow={() => { setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true }); setShowWorkflows(true); }}
+          onProfile={() => { setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true }); setShowSettings(true); }}
+          onDismiss={() => { setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true }); }}
+        />
+      )}
 
       {linkUrl && <LinkView url={linkUrl} onClose={() => setLinkUrl(null)} />}
     </div>

@@ -61,6 +61,7 @@ const DEFAULT_SETTINGS = {
   // Lives here in userData only — never bundled, never written to ~/.claude.json.
   mcpServers: [],
   mcpStrict: false,              // lock turns to ONLY app-managed servers (--strict-mcp-config)
+  gettingStartedSeen: false,     // dismissed the first-launch getting-started explainer
 
   // Rep profile + preferences captured in the run-once onboarding; personalizes every turn.
   profile: {

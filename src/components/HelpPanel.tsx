@@ -1,4 +1,4 @@
-import { Palette, FolderTree, FolderInput, FolderSearch, MessageCircleQuestion, X } from "lucide-react";
+import { Palette, FolderTree, FolderInput, FolderSearch, MessageCircleQuestion, Sparkles, X } from "lucide-react";
 
 // Always-available recovery. If a rep skipped a setup step (brand kit, workspace)
 // they can pick it up here anytime — each action seeds a fresh chat with the
@@ -33,9 +33,11 @@ const ACTIONS = [
 export default function HelpPanel({
   onAction,
   onClose,
+  onGettingStarted,
 }: {
   onAction: (prompt: string) => void;
   onClose: () => void;
+  onGettingStarted: () => void;
 }) {
   function run(prompt: string) {
     onClose();
@@ -50,6 +52,13 @@ export default function HelpPanel({
         <h2>Help &amp; setup</h2>
         <p className="sub">Skipped something during setup? Pick it up here anytime — Claude walks you through it.</p>
         <div className="help-actions">
+          <button className="help-action" onClick={onGettingStarted}>
+            <Sparkles size={18} />
+            <span>
+              <strong>Getting started guide</strong>
+              <em>The quick setup steps that make Accela Chat more useful.</em>
+            </span>
+          </button>
           {ACTIONS.map((a) => (
             <button key={a.label} className="help-action" onClick={() => run(a.prompt)}>
               <a.icon size={18} />
