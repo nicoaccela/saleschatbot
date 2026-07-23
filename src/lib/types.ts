@@ -42,8 +42,8 @@ export interface RepProfile {
   title: string;
   email: string;
   phone: string;
+  role: string;        // sales role ladder (RoleId): bdr | ae | ad | manager | director_vp | csuite
   regions: string[];
-  segment: string;
   products: string[];
   tone: string;
   responseLength: string;

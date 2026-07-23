@@ -1788,3 +1788,78 @@ button {
   padding: 14px 22px; border-top: 1px solid var(--line); background: var(--panel);
   position: sticky; bottom: 0; z-index: 3;
 }
+
+/* ---- Role picker (onboarding + settings) + role recommendation ---------- */
+.onb-role { margin-bottom: 18px; }
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.role-card:hover { border-color: var(--blue); }
+.role-card.on {
+  border-color: var(--blue);
+  background: rgba(0, 104, 190, 0.06);
+  box-shadow: inset 0 0 0 1px var(--blue);
+}
+.role-name { font-weight: 700; font-size: 14px; color: var(--ink); }
+.role-blurb { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.role-pack-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.role-pack-note svg { flex: 0 0 auto; }
+.role-pack-more { font-weight: 400; color: var(--muted); }
+
+/* Recommended-for-your-role block at the top of the Skills sheet. */
+.skill-group-role {
+  background: rgba(0, 104, 190, 0.05);
+  border: 1px solid rgba(0, 104, 190, 0.25);
+  border-radius: 14px;
+  padding: 12px 12px 6px;
+}
+.role-rec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--blue);
+}
+.role-rec-head span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.skill-starter { color: var(--yellow); margin-left: 5px; vertical-align: -1px; }
+
+/* Native select styled to match text inputs (used for Role in Settings). */
+.settings-select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--body);
+  background: #fff;
+  cursor: pointer;
+}
+.settings-select:focus { border-color: var(--blue); outline: none; }

@@ -1,5 +1,7 @@
 // Curated grouping + display order for the skill side-menu. Descriptions come
 // from the live scan (commands:list); this just organizes them for sellers.
+// The per-ROLE recommended package lives in roles.ts and is surfaced on top of
+// these groups by SkillsPanel.
 
 export interface PresetGroup {
   group: string;
@@ -9,11 +11,14 @@ export interface PresetGroup {
 // Groups list ONLY skills that actually ship in the pack (skills/_pack.json), so
 // the menu never shows a phantom row or dumps real skills into an "Other" bucket.
 export const PRESET_GROUPS: PresetGroup[] = [
+  { group: "Prospecting & Outreach", skills: ["prospecting-plan", "cold-outreach", "event-report"] },
   { group: "Deal Execution", skills: ["meddpicc", "deal-strategy", "discovery-prep", "objection-handling"] },
   { group: "Commercial", skills: ["pricing-model", "budget-finder", "business-case-roi"] },
+  { group: "Team & Forecast", skills: ["pipeline-report", "team-forecast", "deal-review", "one-on-one-prep"] },
+  { group: "Executive & Board", skills: ["board-report", "revenue-strategy", "salesforce-report"] },
   { group: "Product Knowledge", skills: ["product-knowledge"] },
   { group: "Brand & Create", skills: ["accela-brand-2026", "accela-deck", "accela-content", "accela-voice"] },
-  { group: "Account & Research", skills: ["account-brief", "pursuit-qualify", "conference-mode"] },
+  { group: "Account & Research", skills: ["account-brief", "territory-plan", "pursuit-qualify", "conference-mode"] },
   { group: "Setup & Workspace", skills: ["brand-setup", "workspace-setup", "workspace-learn", "workspace-organize"] },
 ];
 
@@ -27,6 +32,17 @@ export const SKILL_LABELS: Record<string, string> = {
   "budget-finder": "Budget Finder",
   "business-case-roi": "Business Case / ROI",
   "product-knowledge": "Product Knowledge",
+  "prospecting-plan": "Prospecting Plan",
+  "cold-outreach": "Cold Outreach",
+  "event-report": "Event Report",
+  "pipeline-report": "Pipeline Report",
+  "territory-plan": "Territory Plan",
+  "team-forecast": "Team Forecast",
+  "one-on-one-prep": "1:1 Prep",
+  "deal-review": "Deal Review",
+  "board-report": "Board Report",
+  "revenue-strategy": "Revenue Strategy",
+  "salesforce-report": "Salesforce Reporting",
   "accela-brand-2026": "Accela Brand (2026)",
   "accela-deck": "Deck Builder",
   "accela-content": "On-Brand Content",

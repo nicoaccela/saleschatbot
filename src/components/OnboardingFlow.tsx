@@ -2,16 +2,14 @@ import { useState } from "react";
 import { ArrowRight, ArrowLeft, Check, ShieldCheck, Sparkles, X } from "lucide-react";
 import logoDark from "../assets/accela-logo-dark.svg";
 import type { RepProfile, Settings } from "../lib/types";
+import { ROLES, roleLabel, roleStarter } from "../lib/roles";
+import { skillLabel } from "../lib/presets";
 
 // Run-once setup. Captures the rep's stable profile + working preferences (used
 // to personalize every turn) and their capability mode, then latches
 // setup.completedAt so it never shows again. Content packs (brand kit, the
 // workspace) connect afterward via the setup skills.
 
-const SEGMENTS = [
-  { id: "0-100K", label: "0–100K population", role: "Account Executive" },
-  { id: "100K+", label: "100K+ population", role: "Account Director" },
-];
 const PRODUCTS = ["Accela", "OpenCounter", "ePermitHub", "Novotx"];
 const TONES = ["Professional", "Friendly & warm", "Direct & punchy", "Consultative", "Confident", "Casual"];
 const LENGTHS = ["Extremely short", "Very short", "Short", "Shortish", "Longish", "Long", "Very long", "Extremely long"];
@@ -51,6 +49,10 @@ export default function OnboardingFlow({
   const [saving, setSaving] = useState(false);
 
   const set = (patch: Partial<RepProfile>) => setP((c) => ({ ...c, ...patch }));
+  // Role drives the skill pack + altitude. Population band, if it matters, goes
+  // in the free-text preferences on the next step — it's role-dependent.
+  const pickRole = (id: string) =>
+    setP((c) => ({ ...c, role: c.role === id ? "" : id }));
   const toggle = (key: "products" | "workTypes", v: string) =>
     setP((c) => {
       const a = c[key] || [];
@@ -127,6 +129,28 @@ export default function OnboardingFlow({
           <>
             <h1>Your profile</h1>
             <p className="sub">All optional — fill in what helps; skip the rest. Change anything later in Settings.</p>
+            <div className="field full onb-role">
+              <label>Your role <span className="hint-inline">— tailors your skill pack and the altitude Claude works at</span></label>
+              <div className="role-grid">
+                {ROLES.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={"role-card" + (p.role === r.id ? " on" : "")}
+                    onClick={() => pickRole(r.id)}
+                  >
+                    <span className="role-name">{r.label}</span>
+                    <span className="role-blurb">{r.blurb}</span>
+                  </button>
+                ))}
+              </div>
+              {p.role && (
+                <div className="role-pack-note">
+                  <Sparkles size={13} /> Your pack: {roleStarter(p.role).map(skillLabel).join(" · ")}
+                  <span className="role-pack-more"> + more, ready in every chat</span>
+                </div>
+              )}
+            </div>
             <div className="onb-grid">
               <div className="field">
                 <label>Name</label>
@@ -168,16 +192,6 @@ export default function OnboardingFlow({
                   onBlur={() => addRegions(regionInput)}
                   placeholder="CO, NV, UT…"
                 />
-              </div>
-              <div className="field full">
-                <label>Your segment</label>
-                <div className="seg">
-                  {SEGMENTS.map((s) => (
-                    <button key={s.id} type="button" className={p.segment === s.id ? "on" : ""} onClick={() => set({ segment: p.segment === s.id ? "" : s.id })}>
-                      {s.label} · {s.role}
-                    </button>
-                  ))}
-                </div>
               </div>
               <div className="field full">
                 <label>Products you sell</label>
@@ -224,7 +238,7 @@ export default function OnboardingFlow({
               </div>
               <div className="field full">
                 <label>Anything else? <span className="hint-inline">— preferences in your own words</span></label>
-                <textarea value={p.customPrefs} onChange={(e) => set({ customPrefs: e.target.value })} placeholder="e.g. Always lead with the bottom line. Use my reps' first names. Default to bullet points over paragraphs." />
+                <textarea value={p.customPrefs} onChange={(e) => set({ customPrefs: e.target.value })} placeholder="e.g. I cover 0–100K population cities. Always lead with the bottom line. Default to bullet points over paragraphs." />
               </div>
               <div className="field full">
                 <label>Assistant capabilities</label>
@@ -253,7 +267,13 @@ export default function OnboardingFlow({
               Your cockpit is personalized and ready. From here it's yours to use and customize.
             </p>
             <div className="onb-next">
-              <div className="onb-next-item"><Check size={15} /><span>Your sales skills are ready — open the <strong>Skills</strong> menu to use them.</span></div>
+              <div className="onb-next-item"><Check size={15} /><span>
+                {p.role ? (
+                  <>Your <strong>{roleLabel(p.role)}</strong> pack is live in every new chat — {roleStarter(p.role).map(skillLabel).join(", ")}. Open the <strong>Skills</strong> menu for the full set.</>
+                ) : (
+                  <>Your sales skills are ready — open the <strong>Skills</strong> menu to use them.</>
+                )}
+              </span></div>
               <div className="onb-next-item"><Check size={15} /><span>Set up your brand kit and folders anytime from <strong>Help &amp; setup</strong>, at the bottom of the sidebar.</span></div>
               <div className="onb-next-item"><Check size={15} /><span>Adjust your profile, model, and capabilities in <strong>Settings</strong> whenever.</span></div>
             </div>

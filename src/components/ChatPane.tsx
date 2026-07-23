@@ -342,6 +342,11 @@ export default function ChatPane({
     const updated = await window.accela.setConversationSkills(conv.id, []);
     if (updated) setConv(updated);
   }
+  async function applyPack(names: string[]) {
+    const c = conv ?? (await ensureConv());
+    const updated = await window.accela.setConversationSkills(c.id, names);
+    if (updated) setConv(updated);
+  }
 
   const messages = conv?.messages ?? [];
   const showStreaming = busy && streamText.length > 0;
@@ -503,8 +508,10 @@ export default function ChatPane({
           selected={activeSkills}
           onToggle={toggleSkill}
           onClear={clearSkills}
+          onApplyPack={applyPack}
           onClose={() => setShowSkills(false)}
           convTitle={conv.title}
+          roleId={settings.profile.role}
         />
       )}
     </section>

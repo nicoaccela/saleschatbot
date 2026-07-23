@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import type { Settings, RepProfile } from "../lib/types";
 import { MODELS } from "../lib/models";
+import { ROLES } from "../lib/roles";
 
 const FONTS: { id: Settings["fontFamily"]; label: string }[] = [
   { id: "Plus Jakarta Sans", label: "Plus Jakarta Sans" },
@@ -169,11 +170,17 @@ export default function SettingsPanel({
             onBlur={() => updateProfile({ regions: toList(regionsText) })} />
         </div>
         <div className="field">
-          <label>Segment</label>
-          <div className="seg">
-            <button className={local.profile.segment === "0-100K" ? "on" : ""} onClick={() => updateProfile({ segment: "0-100K" })}>0–100K (AE)</button>
-            <button className={local.profile.segment === "100K+" ? "on" : ""} onClick={() => updateProfile({ segment: "100K+" })}>100K+ (AD)</button>
-          </div>
+          <label>Role <span className="hint-inline">sets your skill pack + the altitude Claude works at</span></label>
+          <select
+            className="settings-select"
+            value={local.profile.role || ""}
+            onChange={(e) => updateProfile({ role: e.target.value })}
+          >
+            <option value="">— Not set —</option>
+            {ROLES.map((r) => (
+              <option key={r.id} value={r.id}>{r.label}</option>
+            ))}
+          </select>
         </div>
         <div className="field">
           <label>Products <span className="hint-inline">comma-separated</span></label>
@@ -182,7 +189,7 @@ export default function SettingsPanel({
             onBlur={() => updateProfile({ products: toList(productsText) })} />
         </div>
         <div className="field">
-          <label>Focus / bio <span className="hint-inline">what you sell, how you work, anything to keep in mind</span></label>
+          <label>Focus / bio <span className="hint-inline">what you sell, the population you cover, how you work, anything to keep in mind</span></label>
           <textarea value={local.profile.customPrefs}
             onChange={(e) => updateProfile({ customPrefs: e.target.value })} />
         </div>

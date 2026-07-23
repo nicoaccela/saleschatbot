@@ -5,6 +5,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { roleAltitude, roleLabel, roleStarter } = require("./roles");
 
 let baseDir = null;
 let convDir = null;
@@ -66,8 +67,8 @@ const DEFAULT_SETTINGS = {
   // Rep profile + preferences captured in the run-once onboarding; personalizes every turn.
   profile: {
     name: "", preferredName: "", title: "", email: "", phone: "",
+    role: "",                    // sales role ladder — see electron/roles.js (drives altitude + starter skills)
     regions: [],                 // states (multi)
-    segment: "",                 // "0-100K" (Account Executive) | "100K+" (Account Director)
     products: ["Accela"],
     tone: "",                    // preferred tone
     responseLength: "",          // length-scale label (Extremely short … Extremely long)
@@ -134,13 +135,16 @@ function convPath(id) {
 }
 
 function createConversation(model) {
+  const settings = getSettings();
   const conv = {
     id: uid(),
     title: "New chat",
     titled: false,            // becomes true once we auto-title from first msg
-    model: model || getSettings().model,
+    model: model || settings.model,
     claudeSessionId: null,    // set after first turn; used for --resume
-    selectedSkills: [],       // skill names primed for this conversation
+    // Seed with the rep's role starter pack so every new chat opens with THEIR
+    // recommended skills already active (they can toggle/clear in the Skills menu).
+    selectedSkills: roleStarter(settings.profile && settings.profile.role),
     createdAt: nowISO(),
     updatedAt: nowISO(),
     messages: [],             // {id, role:"user"|"assistant", content, ts, model?}
@@ -373,20 +377,28 @@ function profilePreamble(profile) {
   if (!profile || !profile.usePersonalization) return "";
   const who = profile.name || profile.email;
   if (!who) return "";
-  const role = profile.segment === "100K+" ? "Account Director"
-    : profile.segment === "0-100K" ? "Account Executive" : "";
+  const rLabel = roleLabel(profile.role);
+  // Prefer a free-text title, else the chosen role.
+  const titleBit = profile.title || rLabel;
   const L = [];
-  L.push(`${who}${profile.title ? `, ${profile.title}` : role ? `, ${role}` : ""}${profile.email && profile.name ? ` (${profile.email})` : ""} — an Accela sales rep.`);
+  L.push(`${who}${titleBit ? `, ${titleBit}` : ""}${profile.email && profile.name ? ` (${profile.email})` : ""} — an Accela sales rep.`);
+  if (rLabel) L.push(`Sales role: ${rLabel}.`);
   if (Array.isArray(profile.regions) && profile.regions.length) L.push(`Territory: ${profile.regions.join(", ")}.`);
-  if (profile.segment) L.push(`Segment: ${profile.segment === "100K+" ? "100K+ population (Account Director)" : "0–100K population (Account Executive)"}.`);
   if (Array.isArray(profile.products) && profile.products.length) L.push(`Sells: ${profile.products.join(", ")}.`);
   if (Array.isArray(profile.workTypes) && profile.workTypes.length) L.push(`Frequent work with you: ${profile.workTypes.join(", ")}.`);
   if (profile.tone) L.push(`Preferred tone: ${profile.tone}.`);
   if (profile.responseLength) L.push(`Preferred response length: ${profile.responseLength}.`);
   if (profile.customPrefs && profile.customPrefs.trim()) L.push(`Other preferences: ${profile.customPrefs.trim()}`);
   if (profile.signature) L.push(`When drafting emails, sign off as:\n${profile.signature}`);
-  return "About the person you're assisting — honor these preferences (tone, length, kind of work) and personalize examples + territory framing:\n" +
+  const about = "About the person you're assisting — honor these preferences (tone, length, kind of work) and personalize examples + territory framing:\n" +
     L.map((x) => `- ${x}`).join("\n");
+  // The role altitude reshapes HOW every skill runs (IC-deal vs roll-up vs board-level).
+  const altitude = roleAltitude(profile.role);
+  if (!altitude) return about;
+  return about +
+    "\n\nWork at the altitude of their role. " + altitude +
+    "\nApply this altitude to EVERY skill they invoke: the same skill should yield role-appropriate output " +
+    "(single-deal depth for an IC, inspection/coaching and roll-ups for a manager or VP, board-level narrative for the C-suite).";
 }
 
 module.exports = {
