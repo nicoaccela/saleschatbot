@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SplitSquareHorizontal, X as XIcon, Sparkles, Upload, RotateCcw } from "lucide-react";
+import { SplitSquareHorizontal, X as XIcon, Sparkles, Upload, RotateCcw, Waypoints } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import Composer from "./Composer";
 import ModelPicker from "./ModelPicker";
@@ -347,10 +347,16 @@ export default function ChatPane({
     const updated = await window.accela.setConversationSkills(c.id, names);
     if (updated) setConv(updated);
   }
+  async function toggleDnc() {
+    const c = conv ?? (await ensureConv());
+    const updated = await window.accela.setConversationDnc(c.id, !(c.divideAndConquer ?? false));
+    if (updated) setConv(updated);
+  }
 
   const messages = conv?.messages ?? [];
   const showStreaming = busy && streamText.length > 0;
   const activeSkills = conv?.selectedSkills ?? [];
+  const dnc = conv?.divideAndConquer ?? false;
 
   return (
     <section
@@ -372,6 +378,32 @@ export default function ChatPane({
             <Sparkles size={15} />
             {activeSkills.length > 0 ? `${activeSkills.length} skills` : "Skills"}
           </button>
+          <div className="dnc-wrap">
+            <button
+              className={"dnc-btn" + (dnc ? " on" : "")}
+              onClick={toggleDnc}
+              aria-pressed={dnc}
+            >
+              <Waypoints size={15} />
+              Divide &amp; Conquer
+              <span className={"dnc-dot" + (dnc ? " on" : "")} />
+            </button>
+            <div className="dnc-popover" role="tooltip">
+              <div className="dnc-pop-head"><Waypoints size={15} /> Divide &amp; Conquer mode</div>
+              <p>
+                Turns this chat into a fan-out engine: the assistant breaks a big job into pieces and works them
+                with parallel agents at once, then hands back one synthesized answer. Stays on for this chat until you switch it off.
+              </p>
+              <div className="dnc-pop-label">Use it for</div>
+              <ul>
+                <li>Deep account research across many sources</li>
+                <li>Parsing a long budget or document for several signals</li>
+                <li>Mining pursuit / lead lists to hunt for opportunities</li>
+                <li>Any broad, multi-part analysis</li>
+              </ul>
+              <div className="dnc-pop-note">Skip it for quick, single questions — it is built for depth, not one-liners.</div>
+            </div>
+          </div>
           <ModelPicker value={model} onChange={setModel} />
           {canSplit && (
             <button className="icon-btn" title="Split right" onClick={onSplit}>

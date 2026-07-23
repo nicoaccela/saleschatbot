@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld("accela", {
     ipcRenderer.invoke("conv:rename", { id, title }),
   setConversationSkills: (id, skills) =>
     ipcRenderer.invoke("conv:setSkills", { id, skills }),
+  setConversationDnc: (id, on) =>
+    ipcRenderer.invoke("conv:setDnc", { id, on }),
 
   // file / folder picker
   pickPaths: (opts) => ipcRenderer.invoke("paths:pick", opts || {}),

@@ -24,6 +24,7 @@ export interface Conversation extends ConversationMeta {
   titled: boolean;
   claudeSessionId: string | null;
   selectedSkills?: string[];
+  divideAndConquer?: boolean;   // "Divide & Conquer" mode — decompose + fan out to subagents
   messages: Message[];
 }
 
@@ -264,6 +265,7 @@ declare global {
       deleteConversation: (id: string) => Promise<boolean>;
       renameConversation: (id: string, title: string) => Promise<Conversation | null>;
       setConversationSkills: (id: string, skills: string[]) => Promise<Conversation | null>;
+      setConversationDnc: (id: string, on: boolean) => Promise<Conversation | null>;
       pickPaths: (opts?: { directory?: boolean }) => Promise<string[]>;
       sendMessage: (payload: {
         conversationId: string;

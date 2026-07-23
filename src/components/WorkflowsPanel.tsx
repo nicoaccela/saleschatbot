@@ -15,6 +15,15 @@ const GATE_LABEL: Record<WorkflowGate, string> = {
   approve: "Pause for my approval",
 };
 
+// One-click starting points: the chip label seeds the "Build with Claude" box
+// with a full prompt, so a rep goes from idea to a drafted workflow in two taps.
+const WF_EXAMPLES: { label: string; prompt: string }[] = [
+  { label: "Post-call MEDDPICC + CRM", prompt: "After each customer call, pull MEDDPICC from the transcript, update Salesforce after I approve, then draft a follow-up email in my voice." },
+  { label: "Monday pipeline prep", prompt: "Every Monday, pull my open pipeline, flag deals with no next step or a past-due close date, and draft my forecast-call notes." },
+  { label: "New account research", prompt: "When I add a new agency, research it, qualify the fit for Accela, and draft a first-touch email to the right persona." },
+  { label: "RFP triage", prompt: "When an RFP comes in, extract every requirement into a matrix, map each to an Accela capability with fit and gaps, then draft the response sections." },
+];
+
 function newId(): string {
   try { return crypto.randomUUID(); } catch { return "s-" + Math.random().toString(36).slice(2); }
 }
@@ -179,19 +188,27 @@ export default function WorkflowsPanel({ commands, onClose }: { commands: SlashC
             </p>
 
             <div className="wf-build">
+              <div className="wf-build-head"><Sparkles size={15} /> Describe it, Claude builds it</div>
               <textarea
-                placeholder="Describe a workflow… e.g. “after each customer call, pull MEDDPICC from the transcript, update the CRM after I approve, and draft a follow-up in my voice”"
+                placeholder="Describe a workflow in plain English… e.g. “after each customer call, pull MEDDPICC from the transcript, update the CRM after I approve, and draft a follow-up in my voice”"
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
               />
-              <button className="setup-btn" disabled={!draftText.trim() || drafting} onClick={buildWithClaude}>
+              <div className="wf-examples">
+                <span className="wf-examples-label">Try:</span>
+                {WF_EXAMPLES.map((ex) => (
+                  <button key={ex.label} className="wf-example-chip" onClick={() => setDraftText(ex.prompt)}>{ex.label}</button>
+                ))}
+              </div>
+              <button className="setup-btn wf-build-btn" disabled={!draftText.trim() || drafting} onClick={buildWithClaude}>
                 {drafting ? <Loader2 size={15} className="spin" /> : <Sparkles size={15} />} {drafting ? "Building…" : "Build with Claude"}
               </button>
             </div>
 
+            <div className="section-label">Or start from a template</div>
             <div className="wf-templates">
               {WORKFLOW_TEMPLATES.map((t) => (
-                <div className="skill-card" key={t.id} style={{ cursor: "default" }}>
+                <div className="skill-card card-tile" key={t.id} style={{ cursor: "default" }}>
                   <span className="skill-text">
                     <span className="skill-name">{t.name}</span>
                     <span className="skill-desc">{t.description}</span>
@@ -199,10 +216,12 @@ export default function WorkflowsPanel({ commands, onClose }: { commands: SlashC
                   <button className="btn-sm" style={{ alignSelf: "center", flex: "0 0 auto" }} onClick={() => useTemplate(t.id)}>Use template</button>
                 </div>
               ))}
-            </div>
-
-            <div className="mcp-add-row">
-              <button className="btn-sm" onClick={newWorkflow}><Plus size={15} /> Blank workflow</button>
+              <div className="skill-card card-tile wf-blank" style={{ cursor: "pointer" }} onClick={newWorkflow}>
+                <span className="skill-text">
+                  <span className="skill-name"><Plus size={14} style={{ verticalAlign: "-2px" }} /> Blank workflow</span>
+                  <span className="skill-desc">Start from scratch and add your own steps.</span>
+                </span>
+              </div>
             </div>
 
             <div className="section-label">Saved {list.length > 0 && `(${list.length})`}</div>

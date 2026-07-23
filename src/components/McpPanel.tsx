@@ -307,7 +307,7 @@ export default function McpPanel({
         {MCP_CATALOG.map((e) => {
           const connected = connectedIds.has(e.id) || connectedIds.has(e.name);
           return (
-            <div className={"skill-card" + (connected ? " on" : "")} key={e.id} style={{ cursor: "default" }}>
+            <div className={"skill-card card-tile" + (connected ? " on" : "")} key={e.id} style={{ cursor: "default" }}>
               <span className="skill-text">
                 <span className="skill-name">
                   {e.label} <AccessBadge access={e.access} />

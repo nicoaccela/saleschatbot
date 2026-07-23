@@ -145,6 +145,7 @@ function createConversation(model) {
     // Seed with the rep's role starter pack so every new chat opens with THEIR
     // recommended skills already active (they can toggle/clear in the Skills menu).
     selectedSkills: roleStarter(settings.profile && settings.profile.role),
+    divideAndConquer: false,  // "Divide & Conquer" mode — decompose + fan out to subagents
     createdAt: nowISO(),
     updatedAt: nowISO(),
     messages: [],             // {id, role:"user"|"assistant", content, ts, model?}
@@ -208,6 +209,13 @@ function setConversationSkills(id, skills) {
   const c = getConversation(id);
   if (!c) return null;
   c.selectedSkills = Array.isArray(skills) ? skills : [];
+  return saveConversation(c);
+}
+
+function setConversationDnc(id, on) {
+  const c = getConversation(id);
+  if (!c) return null;
+  c.divideAndConquer = !!on;
   return saveConversation(c);
 }
 
@@ -417,6 +425,7 @@ module.exports = {
   deleteConversation,
   renameConversation,
   setConversationSkills,
+  setConversationDnc,
   appendMessage,
   titleFrom,
   createWorkflow,

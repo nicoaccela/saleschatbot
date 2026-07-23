@@ -275,6 +275,90 @@ button {
   padding: 3px 10px;
 }
 
+/* ---- Divide & Conquer mode toggle + explainer --------------------------- */
+.dnc-wrap { position: relative; display: inline-flex; -webkit-app-region: no-drag; }
+.dnc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.25s ease, color 0.15s ease, box-shadow 0.25s ease, transform 0.08s ease;
+}
+.dnc-btn:hover { border-color: var(--blue); }
+.dnc-btn:active { transform: translateY(1px); }
+.dnc-btn.on {
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 104, 190, 0.35), 0 6px 18px -6px rgba(0, 104, 190, 0.7);
+  animation: dncGlow 3.2s ease-in-out infinite;
+}
+.dnc-btn.on svg { animation: dncSpin 22s linear infinite; }
+.dnc-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gray);
+  transition: background 0.2s ease;
+}
+.dnc-dot.on { background: var(--teal); box-shadow: 0 0 0 0 rgba(0, 206, 195, 0.7); animation: dncPulse 1.8s ease-out infinite; }
+@keyframes dncPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 206, 195, 0.6); }
+  70%  { box-shadow: 0 0 0 6px rgba(0, 206, 195, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 206, 195, 0); }
+}
+@keyframes dncGlow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0, 104, 190, 0.35), 0 6px 18px -6px rgba(0, 104, 190, 0.55); }
+  50%      { box-shadow: 0 0 0 1px rgba(0, 175, 241, 0.5), 0 8px 22px -6px rgba(0, 175, 241, 0.85); }
+}
+@keyframes dncSpin { to { transform: rotate(360deg); } }
+
+.dnc-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px -12px rgba(13, 38, 58, 0.28);
+  padding: 14px 16px;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+  pointer-events: none;
+}
+.dnc-wrap:hover .dnc-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+.dnc-pop-head {
+  display: flex; align-items: center; gap: 7px;
+  font-weight: 700; font-size: 14px; color: var(--navy);
+  margin-bottom: 6px;
+}
+.dnc-pop-head svg { color: var(--blue); }
+.dnc-popover p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--body); }
+.dnc-pop-label {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); font-weight: 700; margin-bottom: 5px;
+}
+.dnc-popover ul { margin: 0 0 10px; padding-left: 16px; }
+.dnc-popover li { font-size: 12.5px; line-height: 1.5; color: var(--body); }
+.dnc-pop-note {
+  font-size: 11.5px; color: var(--muted);
+  border-top: 1px solid var(--line); padding-top: 8px;
+}
+
 /* legacy single-column alias */
 .main {
   display: flex;
@@ -1602,14 +1686,46 @@ button {
 
 .wf-list, .wf-detail { padding: 16px 22px 20px; overflow-y: auto; flex: 1; min-height: 0; }
 .wf-list .sub { margin-top: 0; }
-.wf-build { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
-.wf-build textarea {
-  width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 12px;
-  padding: 10px 12px; font: inherit; font-size: 14px; resize: vertical;
+.wf-build {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;
+  background: linear-gradient(180deg, rgba(0,104,190,0.05), rgba(0,104,190,0.02));
+  border: 1px solid rgba(0,104,190,0.22); border-radius: 16px; padding: 16px;
 }
-.wf-build textarea:focus { outline: none; border-color: var(--blue); }
+.wf-build-head { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; color: var(--navy); }
+.wf-build-head svg { color: var(--blue); }
+.wf-build textarea {
+  width: 100%; min-height: 72px; border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; font: inherit; font-size: 14px; resize: vertical; background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.wf-build textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,104,190,0.12); }
 .wf-build .setup-btn { align-self: flex-start; }
-.wf-templates { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.wf-examples { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.wf-examples-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.wf-example-chip {
+  font-size: 12px; font-weight: 600; color: var(--blue);
+  background: #fff; border: 1px solid rgba(0,104,190,0.28); border-radius: 999px;
+  padding: 5px 11px; cursor: pointer;
+  transition: background 0.14s ease, transform 0.08s ease, border-color 0.14s ease;
+}
+.wf-example-chip:hover { background: #eef6fd; border-color: var(--blue); }
+.wf-example-chip:active { transform: translateY(1px); }
+.wf-templates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.wf-blank { border-style: dashed; }
+
+/* Uniform, tappable card tiles — shared by MCP catalog + workflow templates. */
+.card-tile {
+  min-height: 66px;
+  align-items: center;
+  transition: border-color 0.14s ease, background 0.2s ease, box-shadow 0.18s ease, transform 0.1s ease;
+}
+.card-tile:hover { box-shadow: 0 8px 20px -12px rgba(13,38,58,0.35); transform: translateY(-1px); }
+.card-tile .skill-text { flex: 1 1 auto; }
+.card-tile .skill-desc {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-tile .btn-sm { min-width: 116px; justify-content: center; }
+@media (prefers-reduced-motion: reduce) { .card-tile:hover { transform: none; } }
 
 .wf-status {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
@@ -1791,6 +1907,15 @@ button {
 
 /* ---- Role picker (onboarding + settings) + role recommendation ---------- */
 .onb-role { margin-bottom: 18px; }
+.role-group { margin-bottom: 12px; }
+.role-group-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 4px 0 7px;
+}
 .role-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

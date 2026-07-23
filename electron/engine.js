@@ -11,7 +11,25 @@ const { runTurn } = require("./claude");
 // Assemble the per-turn system prompt: rep-profile preamble (already rendered to
 // a string) + the base system prompt, then activated-skill priming. Mirrors the
 // original inline logic in chat:send verbatim so behavior is unchanged.
-function assembleSystemPrompt({ baseSystem = "", preamble = "", activeSkills = [], registry = [] } = {}) {
+// The "Divide & Conquer" operating-mode directive. When the rep turns the mode
+// on for a conversation, this is appended to the system prompt for every turn so
+// the assistant decomposes big tasks and fans them out to parallel subagents
+// instead of grinding sequentially. Kept here so chat + workflows + sweeps could
+// all opt in through the one assembly path.
+const DIVIDE_AND_CONQUER = [
+  "OPERATING MODE — DIVIDE & CONQUER IS ON for this conversation.",
+  "Attack substantial work by decomposing it and running the parts in parallel, not one at a time.",
+  "When a request is broad or has independent parts — deep account research across many sources, parsing a long",
+  "budget or document for several signals, mining a list of pursuits/leads for opportunities, multi-account or",
+  "multi-section analysis — split it into independent sub-tasks and dispatch parallel subagents to cover them",
+  "concurrently (your Task/subagent tools and the agent fleet: account-researcher, pursuit-prospector, rfp-analyst,",
+  "competitive-intel, deck-smith). Then synthesize ONE clean, deduplicated, cross-checked answer — never dump raw",
+  "agent output. Be exhaustive and verify the important claims.",
+  "Use it responsibly: for a small or simple request, just answer directly — do not over-orchestrate or spin up",
+  "agents for a one-line question. The goal is thoroughness on big jobs, not ceremony on small ones.",
+].join(" ");
+
+function assembleSystemPrompt({ baseSystem = "", preamble = "", activeSkills = [], registry = [], divideAndConquer = false } = {}) {
   let system = baseSystem || "";
   if (preamble) system = `${preamble}\n\n${system}`;
   if (Array.isArray(activeSkills) && activeSkills.length) {
@@ -22,6 +40,7 @@ function assembleSystemPrompt({ baseSystem = "", preamble = "", activeSkills = [
     system +=
       `\n\nThe rep has activated these skills for this conversation — prioritize them and invoke directly when relevant:\n${lines}`;
   }
+  if (divideAndConquer) system += `\n\n${DIVIDE_AND_CONQUER}`;
   return system;
 }
 

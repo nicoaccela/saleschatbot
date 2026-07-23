@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowRight, ArrowLeft, Check, ShieldCheck, Sparkles, X } from "lucide-react";
 import logoDark from "../assets/accela-logo-dark.svg";
 import type { RepProfile, Settings } from "../lib/types";
-import { ROLES, roleLabel, roleStarter } from "../lib/roles";
+import { ROLES, ROLE_GROUPS, roleLabel, roleStarter } from "../lib/roles";
 import { skillLabel } from "../lib/presets";
 
 // Run-once setup. Captures the rep's stable profile + working preferences (used
@@ -130,20 +130,25 @@ export default function OnboardingFlow({
             <h1>Your profile</h1>
             <p className="sub">All optional — fill in what helps; skip the rest. Change anything later in Settings.</p>
             <div className="field full onb-role">
-              <label>Your role <span className="hint-inline">— tailors your skill pack and the altitude Claude works at</span></label>
-              <div className="role-grid">
-                {ROLES.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={"role-card" + (p.role === r.id ? " on" : "")}
-                    onClick={() => pickRole(r.id)}
-                  >
-                    <span className="role-name">{r.label}</span>
-                    <span className="role-blurb">{r.blurb}</span>
-                  </button>
-                ))}
-              </div>
+              <label>Your role <span className="hint-inline">— pick your title / job function; it tailors your skill pack and the altitude Claude works at</span></label>
+              {ROLE_GROUPS.map((grp) => (
+                <div className="role-group" key={grp}>
+                  <div className="role-group-label">{grp}</div>
+                  <div className="role-grid">
+                    {ROLES.filter((r) => r.group === grp).map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        className={"role-card" + (p.role === r.id ? " on" : "")}
+                        onClick={() => pickRole(r.id)}
+                      >
+                        <span className="role-name">{r.label}</span>
+                        <span className="role-blurb">{r.blurb}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
               {p.role && (
                 <div className="role-pack-note">
                   <Sparkles size={13} /> Your pack: {roleStarter(p.role).map(skillLabel).join(" · ")}

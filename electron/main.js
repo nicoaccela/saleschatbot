@@ -229,6 +229,9 @@ function registerIpc() {
   ipcMain.handle("conv:setSkills", (_e, { id, skills }) =>
     store.setConversationSkills(id, skills),
   );
+  ipcMain.handle("conv:setDnc", (_e, { id, on }) =>
+    store.setConversationDnc(id, on),
+  );
 
   // --- File / folder picker ---
   ipcMain.handle("paths:pick", async (_e, opts) => {
@@ -297,6 +300,7 @@ function registerIpc() {
       preamble: store.profilePreamble(settings.profile),
       activeSkills,
       registry,
+      divideAndConquer: !!conv.divideAndConquer,
     });
 
     // App-managed MCP servers → the CLI's --mcp-config map (enabled only).

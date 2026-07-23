@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import type { Settings, RepProfile } from "../lib/types";
 import { MODELS } from "../lib/models";
-import { ROLES } from "../lib/roles";
+import { ROLES, ROLE_GROUPS } from "../lib/roles";
 
 const FONTS: { id: Settings["fontFamily"]; label: string }[] = [
   { id: "Plus Jakarta Sans", label: "Plus Jakarta Sans" },
@@ -177,8 +177,12 @@ export default function SettingsPanel({
             onChange={(e) => updateProfile({ role: e.target.value })}
           >
             <option value="">— Not set —</option>
-            {ROLES.map((r) => (
-              <option key={r.id} value={r.id}>{r.label}</option>
+            {ROLE_GROUPS.map((grp) => (
+              <optgroup key={grp} label={grp}>
+                {ROLES.filter((r) => r.group === grp).map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
