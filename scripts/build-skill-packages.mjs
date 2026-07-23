@@ -41,7 +41,7 @@ function reset() {
   // artifacts we own, then rebuild them.
   fs.mkdirSync(OUT, { recursive: true });
   for (const f of fs.readdirSync(OUT)) {
-    if (/^Accela-Skills-.*\.zip$/.test(f) || f === "index.html") {
+    if (/^Accela-Skills-.*\.zip$/.test(f) || f === "index.html" || f === "manifest.json") {
       fs.rmSync(path.join(OUT, f), { force: true });
     }
   }
@@ -230,6 +230,21 @@ const allRes = buildBundle("Accela-Skills-All", "all", ALL_SKILLS, allReadme);
 console.log(`  ✓ Accela-Skills-All.zip  (${allRes.count} skills)`);
 
 fs.writeFileSync(path.join(OUT, "index.html"), indexHtml(cards));
+
+// Machine-readable manifest so the app can auto-locate + install the right pack
+// per role (roleId -> zip). Read by electron/skill-import.js when the folder is
+// synced locally.
+const manifest = {
+  pack: "accela-skill-pack",
+  version: VERSION,
+  generatedAt: new Date().toISOString(),
+  shareUrl: "https://accela-my.sharepoint.com/:f:/p/nlameijer/IgCJl6-B7jxZRrzGPRfHPLylASfMROkCOke8L1Gy8V5TVWA?e=vTmUYz",
+  packs: [
+    ...cards.map((c) => ({ roleId: c.id, group: c.group, label: c.label, zip: c.zip, skills: c.skills })),
+    { roleId: "all", group: "All", label: "Complete set", zip: "Accela-Skills-All.zip", skills: ALL_SKILLS.filter(exists) },
+  ],
+};
+fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
 fs.rmSync(STAGING, { recursive: true, force: true });
-console.log(`  ✓ index.html`);
+console.log(`  ✓ index.html + manifest.json`);
 console.log(`Done. ${cards.length} role packages + full set + catalog in ${OUT}`);

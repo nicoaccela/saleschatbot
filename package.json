@@ -1,6 +1,6 @@
 {
   "name": "accela-chat",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Accela Chat — a Chromium (Electron) desktop client that uses Claude Code as the model, styled in the Accela 2026 brand.",
   "author": "Accela Sales Engineering",

@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld("accela", {
   checkClaude: () => ipcRenderer.invoke("claude:check"),
   listCommands: () => ipcRenderer.invoke("commands:list"),
 
+  // skill packs (auto-import from the shared OneDrive folder)
+  skillPackSource: () => ipcRenderer.invoke("skills:packSource"),
+  importSkillPack: (roleId) => ipcRenderer.invoke("skills:importForRole", roleId),
+
   // settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),

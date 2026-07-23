@@ -231,6 +231,8 @@ declare global {
       pathForFile: (file: File) => string;
       checkClaude: () => Promise<{ ok: boolean; version: string | null; path: string }>;
       listCommands: () => Promise<SlashCommand[]>;
+      skillPackSource: () => Promise<{ foundLocal: boolean; dir: string | null; url: string; version: string | null; packs: { roleId: string; label: string; zip: string; count: number }[] }>;
+      importSkillPack: (roleId?: string) => Promise<{ ok: boolean; foundLocal?: boolean; dir?: string; zip?: string; url?: string; installed?: string[]; skipped?: string[]; error?: string }>;
       getSettings: () => Promise<Settings>;
       setSettings: (patch: Partial<Settings>) => Promise<Settings>;
       listMcpServers: () => Promise<McpServerConfig[]>;

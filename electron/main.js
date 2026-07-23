@@ -13,6 +13,7 @@ const workflow = require("./workflow");
 const scheduler = require("./scheduler");
 const fleet = require("./fleet");
 const { listAvailableCommands, resolveSkillDir } = require("./commands");
+const skillImport = require("./skill-import");
 
 let mainWindow = null;
 
@@ -130,6 +131,15 @@ function registerIpc() {
   // --- Available slash-commands / skills ---
   ipcMain.handle("commands:list", () => {
     try { return listAvailableCommands(); } catch { return []; }
+  });
+
+  // --- Skill packs (auto-import from the shared OneDrive folder) ---
+  ipcMain.handle("skills:packSource", () => {
+    try { return skillImport.packSource(); } catch { return { foundLocal: false, dir: null, url: skillImport.SHARE_URL, version: null, packs: [] }; }
+  });
+  ipcMain.handle("skills:importForRole", (_e, roleId) => {
+    try { return skillImport.importForRole(roleId); }
+    catch (err) { return { ok: false, error: (err && err.message) || String(err), url: skillImport.SHARE_URL }; }
   });
 
   // Open a URL in the system browser (right-click a link, or "Open in browser").

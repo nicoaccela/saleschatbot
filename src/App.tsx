@@ -236,6 +236,8 @@ export default function App() {
       {showGettingStarted && (
         <GettingStarted
           isMac={window.accela.platform === "darwin"}
+          roleId={settings.profile.role}
+          onImportViaClaude={(prompt) => { setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true }); runHelpAction(prompt); }}
           onConnect={() => { setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true }); setShowMcp(true); }}
           onMail={() => {
             setShowGettingStarted(false); saveSettings({ gettingStartedSeen: true });

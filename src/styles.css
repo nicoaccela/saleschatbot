@@ -1859,6 +1859,26 @@ button {
 .gs-step-desc { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 .gs-step-cta { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; color: var(--blue); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
 .gs-go { width: 100%; justify-content: center; }
+
+/* Auto-import hero at the top of Getting Started. */
+.gs-import {
+  display: flex; align-items: flex-start; gap: 13px;
+  border-radius: 12px; padding: 13px 14px; margin-bottom: 16px;
+  border: 1px solid rgba(0, 104, 190, 0.28);
+  background: linear-gradient(180deg, rgba(0, 104, 190, 0.06), rgba(0, 104, 190, 0.02));
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.gs-import.done { border-color: rgba(0, 206, 195, 0.5); background: linear-gradient(180deg, rgba(0, 206, 195, 0.08), rgba(0, 206, 195, 0.02)); }
+.gs-import-icon {
+  flex: 0 0 40px; height: 40px; width: 40px; border-radius: 10px; display: grid; place-items: center;
+  color: #fff; background: linear-gradient(135deg, var(--blue), var(--bright));
+}
+.gs-import.done .gs-import-icon { background: linear-gradient(135deg, var(--teal), var(--bright)); }
+.gs-import-body { flex: 1; min-width: 0; }
+.gs-import-title { font-weight: 700; font-size: 14px; color: var(--ink); }
+.gs-import-desc { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+.gs-import-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
 @media (prefers-reduced-motion: reduce) { .gs-card { animation: none !important; } .gs-step { transition: none !important; } }
 .fleet-tile-title { font-weight: 600; font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fleet-tile-body { font-size: 12.5px; color: var(--body); max-height: 220px; overflow-y: auto; }
