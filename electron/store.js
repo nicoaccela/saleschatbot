@@ -9,15 +9,18 @@ const crypto = require("node:crypto");
 let baseDir = null;
 let convDir = null;
 let workflowsDir = null;
+let schedulesDir = null;
 let settingsPath = null;
 
 function init(userDataDir) {
   baseDir = userDataDir;
   convDir = path.join(baseDir, "conversations");
   workflowsDir = path.join(baseDir, "workflows");
+  schedulesDir = path.join(baseDir, "schedules");
   settingsPath = path.join(baseDir, "settings.json");
   fs.mkdirSync(convDir, { recursive: true });
   fs.mkdirSync(workflowsDir, { recursive: true });
+  fs.mkdirSync(schedulesDir, { recursive: true });
 }
 
 // Atomic JSON write (temp + rename) — used by the autonomous workflow writers so
@@ -297,6 +300,66 @@ function deleteWorkflow(id) {
   try { fs.unlinkSync(wfPath(id)); return true; } catch { return false; }
 }
 
+// ---- Schedules ------------------------------------------------------------
+// One JSON file per schedule (small; stored whole). Run-state (lastRunAt etc.)
+// is merged in by saveSchedule so a tick and a UI edit don't lose each other's
+// fields.
+
+function schedPath(id) { return path.join(schedulesDir, `${id}.json`); }
+
+function createSchedule(data) {
+  const d = data || {};
+  const s = {
+    id: uid(),
+    name: d.name || "New schedule",
+    cadence: ["daily", "weekdays", "weekly"].includes(d.cadence) ? d.cadence : "daily",
+    time: /^\d{2}:\d{2}$/.test(d.time) ? d.time : "08:00",
+    weekday: typeof d.weekday === "number" ? d.weekday : 1,
+    target: d.target && typeof d.target === "object" ? d.target : { type: "daily-prep" },
+    enabled: d.enabled !== false,
+    lastRunAt: null,
+    lastStatus: null,
+    lastResult: "",
+    nextRunAt: null,
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  };
+  writeJsonAtomic(schedPath(s.id), s);
+  return s;
+}
+
+function getSchedule(id) {
+  try { return JSON.parse(fs.readFileSync(schedPath(id), "utf8")); } catch { return null; }
+}
+
+function listSchedules() {
+  let files = [];
+  try { files = fs.readdirSync(schedulesDir).filter((f) => f.endsWith(".json")); } catch { return []; }
+  const out = [];
+  for (const f of files) {
+    try { out.push(JSON.parse(fs.readFileSync(path.join(schedulesDir, f), "utf8"))); } catch { /* skip */ }
+  }
+  out.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  return out;
+}
+
+// Merge allowed config + run fields (whole-file read-modify-write).
+function saveSchedule(id, patch) {
+  const s = getSchedule(id);
+  if (!s) return null;
+  const p = patch || {};
+  for (const k of ["name", "cadence", "time", "weekday", "target", "enabled", "lastRunAt", "lastStatus", "lastResult", "nextRunAt"]) {
+    if (p[k] !== undefined) s[k] = p[k];
+  }
+  s.updatedAt = nowISO();
+  writeJsonAtomic(schedPath(id), s);
+  return s;
+}
+
+function deleteSchedule(id) {
+  try { fs.unlinkSync(schedPath(id)); return true; } catch { return false; }
+}
+
 // Derive a short title from the first user message.
 function titleFrom(text) {
   const clean = text.replace(/\s+/g, " ").trim();
@@ -349,4 +412,9 @@ module.exports = {
   saveWorkflowDef,
   setWorkflowRun,
   deleteWorkflow,
+  createSchedule,
+  getSchedule,
+  listSchedules,
+  saveSchedule,
+  deleteSchedule,
 };

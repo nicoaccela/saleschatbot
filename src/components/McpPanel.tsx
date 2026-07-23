@@ -94,6 +94,7 @@ export default function McpPanel({
   const [results, setResults] = useState<Record<string, McpTestResult>>({});
   const [permsFor, setPermsFor] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [ambient, setAmbient] = useState<string[]>([]); // server names already in ~/.claude.json
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Ref mirror so writes that run AFTER an await (test/import) build on the
   // latest state, never a stale render snapshot. persist() keeps it in sync.
@@ -102,12 +103,15 @@ export default function McpPanel({
   useEffect(() => {
     window.accela.listMcpServers().then((s) => { serversRef.current = s; setServers(s); });
     window.accela.mcpSupport().then(setSupport);
+    // Servers the rep set up via a guided Connect land in ~/.claude.json; surface
+    // those names so the catalog card reads "connected" without a manual Import.
+    window.accela.importMcpServers().then((found) => setAmbient(found.map((f) => f.name).filter(Boolean) as string[]));
   }, []);
 
   const enabledCount = servers.filter((s) => s.enabled !== false).length;
   const connectedIds = useMemo(
-    () => new Set(servers.flatMap((s) => [s.catalogId, s.name].filter(Boolean) as string[])),
-    [servers],
+    () => new Set([...servers.flatMap((s) => [s.catalogId, s.name].filter(Boolean) as string[]), ...ambient]),
+    [servers, ambient],
   );
 
   function persist(next: McpServerConfig[]) {

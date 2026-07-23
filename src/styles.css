@@ -796,9 +796,9 @@ button {
 
 /* Respect reduced-motion: stop the continuous animations (a11y + low-end perf). */
 @media (prefers-reduced-motion: reduce) {
+  /* Keep .spin — a busy spinner is essential state, not decoration. */
   .working-dots i,
-  .cursor,
-  .spin {
+  .cursor {
     animation: none !important;
   }
 }
@@ -1637,10 +1637,10 @@ button {
 .wf-step { display: flex; gap: 12px; }
 .wf-step-rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
 .wf-step-dot { color: var(--gray); display: grid; place-items: center; height: 26px; }
-.wf-step-dot.done { color: var(--teal); }
-.wf-step-dot.error { color: var(--orange); }
+.wf-step-dot.done { color: #0a7d76; }
+.wf-step-dot.error { color: #b5461f; }
 .wf-step-dot.running { color: var(--blue); }
-.wf-step-dot.paused { color: var(--yellow); }
+.wf-step-dot.paused { color: #8a6d00; }
 .wf-step-line { flex: 1; width: 2px; background: var(--line); min-height: 12px; margin: 2px 0; }
 .wf-step-body { flex: 1; min-width: 0; padding-bottom: 16px; }
 .wf-step-toprow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -1676,7 +1676,86 @@ button {
 .wf-step.running .wf-step-out { border-color: var(--blue); }
 .wf-step-errline { color: var(--orange); font-size: 13px; font-weight: 600; margin: 2px 0 4px; }
 
+/* ---- Schedules / Today ------------------------------------------------- */
+.soon-inline { color: var(--muted); font-style: italic; }
+.soon-card {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 18px; padding: 10px 12px;
+  border: 1px dashed var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--muted); font-size: 12.5px;
+}
+.soon-card svg { color: var(--muted); flex: 0 0 auto; }
+.today-card {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+  background: #fff; box-shadow: 0 1px 3px rgba(13, 38, 58, 0.05);
+}
+.today-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.today-card-title { font-weight: 700; color: var(--ink); font-size: 14px; }
+.today-card-meta { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; flex: 0 0 auto; }
+.today-card-body { font-size: 13px; max-height: 260px; overflow-y: auto; }
+
+/* ---- Fleet ------------------------------------------------------------- */
+.fleet-task { width: 100%; min-height: 58px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13.5px; resize: vertical; }
+.fleet-items { width: 100%; min-height: 96px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; resize: vertical; font-family: var(--mono); }
+.fleet-task:focus, .fleet-items:focus { outline: none; border-color: var(--blue); }
+.fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+.fleet-tile {
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff;
+  min-height: 88px; display: flex; flex-direction: column;
+  box-shadow: 0 1px 3px rgba(13, 38, 58, 0.05);
+  animation: tile-in 0.3s ease both;
+}
+.fleet-tile.running { border-color: var(--bright); box-shadow: 0 0 0 3px rgba(0, 175, 241, 0.10); }
+.fleet-tile.done { border-color: rgba(0, 206, 195, 0.55); }
+.fleet-tile.error { border-color: rgba(234, 116, 69, 0.55); }
+.fleet-tile-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+.fleet-tile-dot { display: grid; place-items: center; flex: 0 0 auto; }
+.fleet-tile.running .fleet-tile-dot { color: var(--blue); }
+.fleet-tile.done .fleet-tile-dot { color: #0a7d76; }
+.fleet-tile.error .fleet-tile-dot { color: #b5461f; }
+.fleet-progress { height: 5px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 2px 0 8px; }
+.fleet-progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--bright), var(--teal)); border-radius: 999px; transition: width 0.3s ease; }
+.fleet-tile-title { font-weight: 600; font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fleet-tile-body { font-size: 12.5px; color: var(--body); max-height: 220px; overflow-y: auto; }
+.fleet-tile-body > :first-child { margin-top: 0; }
+.fleet-tile-err { font-size: 12.5px; color: var(--orange); font-weight: 600; }
+@keyframes tile-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* ---- Polish: depth + motion + warmth ----------------------------------- */
+.overlay { animation: overlay-in 0.16s ease both; }
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+.sheet { animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes sheet-in { from { transform: translateX(26px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.wf-modal { position: relative; animation: modal-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes modal-in { from { transform: translateY(12px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
+/* brand accent bar atop the modal (ascending-bars palette) */
+.wf-modal::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--blue), var(--bright), var(--teal)); z-index: 2; }
+
+.setup-btn { background: linear-gradient(135deg, var(--blue), var(--bright)); box-shadow: 0 2px 8px rgba(0, 104, 190, 0.25); transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease; }
+.setup-btn:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0, 104, 190, 0.32); }
+.setup-btn:active:not(:disabled) { transform: translateY(0); }
+
+.new-chat { background: linear-gradient(135deg, var(--blue), var(--bright)); box-shadow: 0 2px 10px rgba(0, 104, 190, 0.3); transition: transform 0.1s ease, filter 0.15s ease; }
+.new-chat:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+.side-btn { transition: background 0.12s ease, color 0.12s ease, transform 0.08s ease; }
+.side-btn:hover { color: #fff; }
+.side-btn:active { transform: translateY(1px); }
+
+.skill-card, .mcp-row, .today-card, .help-action, .fleet-tile { transition: border-color 0.12s ease, box-shadow 0.15s ease, transform 0.08s ease; }
+.skill-card:hover, .mcp-row:hover, .today-card:hover { box-shadow: 0 3px 12px rgba(13, 38, 58, 0.07); }
+.btn-sm, .icon-btn, .seg button { transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease, transform 0.08s ease; }
+.btn-sm:active:not(:disabled), .icon-btn:active:not(:disabled) { transform: translateY(1px); }
+.send-btn { transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease; }
+.send-btn:hover:not(:disabled) { transform: scale(1.06); box-shadow: 0 3px 10px rgba(0, 104, 190, 0.3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .sheet, .wf-modal, .fleet-tile { animation: none !important; }
+  .setup-btn, .new-chat, .side-btn, .btn-sm, .icon-btn, .send-btn, .skill-card, .mcp-row, .today-card { transition: none !important; }
+}
+
 .wf-footer {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 22px; border-top: 1px solid var(--line); background: var(--panel);
+  position: sticky; bottom: 0; z-index: 3;
 }

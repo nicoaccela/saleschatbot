@@ -16,10 +16,6 @@ contextBridge.exposeInMainWorld("accela", {
   checkClaude: () => ipcRenderer.invoke("claude:check"),
   listCommands: () => ipcRenderer.invoke("commands:list"),
 
-  // bundled Accela skill pack
-  skillPackStatus: () => ipcRenderer.invoke("skills:status"),
-  installSkillPack: () => ipcRenderer.invoke("skills:install"),
-
   // settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),
@@ -49,6 +45,27 @@ contextBridge.exposeInMainWorld("accela", {
     const handler = (_e, data) => cb(data);
     ipcRenderer.on("workflow:event", handler);
     return () => ipcRenderer.removeListener("workflow:event", handler);
+  },
+
+  // schedules
+  listSchedules: () => ipcRenderer.invoke("schedule:list"),
+  createSchedule: (data) => ipcRenderer.invoke("schedule:create", data),
+  saveSchedule: (id, patch) => ipcRenderer.invoke("schedule:save", { id, patch }),
+  deleteSchedule: (id) => ipcRenderer.invoke("schedule:delete", id),
+  runSchedule: (id) => ipcRenderer.invoke("schedule:run", id),
+  onScheduleEvent: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("schedule:event", handler);
+    return () => ipcRenderer.removeListener("schedule:event", handler);
+  },
+
+  // fleet (parallel agents)
+  startFleet: (fleetId, task, items) => ipcRenderer.invoke("fleet:start", { fleetId, task, items }),
+  cancelFleet: (fleetId) => ipcRenderer.invoke("fleet:cancel", fleetId),
+  onFleetEvent: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("fleet:event", handler);
+    return () => ipcRenderer.removeListener("fleet:event", handler);
   },
 
   // conversations

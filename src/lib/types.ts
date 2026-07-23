@@ -154,6 +154,41 @@ export interface WorkflowEvent {
   resumed?: boolean;
 }
 
+// ---- Schedules -----------------------------------------------------------
+export type ScheduleCadence = "daily" | "weekdays" | "weekly";
+export type ScheduleTargetType = "daily-prep" | "weekly-meetings" | "workflow";
+export interface ScheduleTarget { type: ScheduleTargetType; workflowId?: string }
+
+export interface Schedule {
+  id: string;
+  name: string;
+  cadence: ScheduleCadence;
+  time: string;               // "HH:MM" local
+  weekday: number;            // 0-6 (weekly cadence)
+  target: ScheduleTarget;
+  enabled: boolean;
+  lastRunAt: string | null;
+  lastStatus: "ok" | "error" | null;
+  lastResult: string;
+  nextRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface ScheduleEvent { type: "schedule-start" | "schedule-done"; scheduleId: string }
+
+// ---- Fleet ---------------------------------------------------------------
+export interface FleetEvent {
+  type: "fleet-start" | "worker" | "fleet-done";
+  fleetId: string;
+  idx?: number;
+  item?: string;
+  status?: "running" | "done" | "error";
+  text?: string;
+  output?: string;
+  error?: string;
+  count?: number;
+}
+
 export interface Settings {
   model: string;
   fontFamily: "Plus Jakarta Sans" | "Inter" | "System";
@@ -213,6 +248,15 @@ declare global {
       resumeWorkflow: (id: string) => Promise<{ ok: boolean; error?: string }>;
       cancelWorkflow: (id: string) => Promise<{ ok: boolean; error?: string }>;
       onWorkflowEvent: (cb: (e: WorkflowEvent) => void) => () => void;
+      listSchedules: () => Promise<Schedule[]>;
+      createSchedule: (data: Partial<Schedule>) => Promise<Schedule>;
+      saveSchedule: (id: string, patch: Partial<Schedule>) => Promise<Schedule | null>;
+      deleteSchedule: (id: string) => Promise<boolean>;
+      runSchedule: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      onScheduleEvent: (cb: (e: ScheduleEvent) => void) => () => void;
+      startFleet: (fleetId: string, task: string, items: string[]) => Promise<{ ok: boolean; error?: string; count?: number }>;
+      cancelFleet: (fleetId: string) => Promise<{ ok: boolean }>;
+      onFleetEvent: (cb: (e: FleetEvent) => void) => () => void;
       listConversations: () => Promise<ConversationMeta[]>;
       getConversation: (id: string) => Promise<Conversation | null>;
       createConversation: (model?: string) => Promise<Conversation>;

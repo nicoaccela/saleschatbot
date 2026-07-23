@@ -10,8 +10,9 @@ const { checkClaude, checkMcpSupport } = require("./claude");
 const { assembleSystemPrompt, runStep } = require("./engine");
 const mcp = require("./mcp");
 const workflow = require("./workflow");
+const scheduler = require("./scheduler");
+const fleet = require("./fleet");
 const { listAvailableCommands, resolveSkillDir } = require("./commands");
-const skillsPack = require("./skills-pack");
 
 let mainWindow = null;
 
@@ -101,6 +102,9 @@ app.whenReady().then(() => {
   registerIpc();
   workflow.setEmitter((payload) => send("workflow:event", payload));
   workflow.reloadOnBoot();
+  scheduler.setEmitter((payload) => send("schedule:event", payload));
+  fleet.setEmitter((payload) => send("fleet:event", payload));
+  scheduler.start();
   createWindow();
   initAutoUpdates();
 
@@ -128,17 +132,9 @@ function registerIpc() {
     try { return listAvailableCommands(); } catch { return []; }
   });
 
-  // --- Bundled Accela skill pack (install / status) ---
-  ipcMain.handle("skills:status", () => skillsPack.status(app));
-
   // Open a URL in the system browser (right-click a link, or "Open in browser").
   ipcMain.handle("open:external", (_e, url) => {
     if (typeof url === "string" && /^https?:\/\//i.test(url)) shell.openExternal(url);
-  });
-  ipcMain.handle("skills:install", () => {
-    const res = skillsPack.install(app);
-    if (res && res.ok) store.setSettings({ skillsPackVersion: res.version });
-    return res;
   });
 
   // --- Settings ---
@@ -204,6 +200,23 @@ function registerIpc() {
   ipcMain.handle("workflow:start", (_e, id) => workflow.startRun(id));
   ipcMain.handle("workflow:resume", (_e, id) => workflow.resumeRun(id));
   ipcMain.handle("workflow:cancel", (_e, id) => workflow.cancelRun(id));
+
+  // --- Schedules ---
+  ipcMain.handle("schedule:list", () => store.listSchedules());
+  ipcMain.handle("schedule:create", (_e, data) => store.createSchedule(data || {}));
+  ipcMain.handle("schedule:save", (_e, payload) => {
+    const { id, patch } = payload || {};
+    return store.saveSchedule(id, patch || {});
+  });
+  ipcMain.handle("schedule:delete", (_e, id) => store.deleteSchedule(id));
+  ipcMain.handle("schedule:run", (_e, id) => scheduler.runNow(id));
+
+  // --- Fleet (parallel agents) ---
+  ipcMain.handle("fleet:start", (_e, payload) => {
+    const { fleetId, task, items } = payload || {};
+    return fleet.start(fleetId, task, items);
+  });
+  ipcMain.handle("fleet:cancel", (_e, fleetId) => fleet.cancel(fleetId));
 
   // --- Conversations ---
   ipcMain.handle("conv:list", () => store.listConversations());

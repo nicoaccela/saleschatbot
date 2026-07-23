@@ -7,6 +7,8 @@ import OnboardingFlow from "./components/OnboardingFlow";
 import HelpPanel from "./components/HelpPanel";
 import McpPanel from "./components/McpPanel";
 import WorkflowsPanel from "./components/WorkflowsPanel";
+import SchedulesPanel from "./components/SchedulesPanel";
+import FleetPanel from "./components/FleetPanel";
 import LinkView from "./components/LinkView";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
@@ -38,6 +40,8 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showMcp, setShowMcp] = useState(false);
   const [showWorkflows, setShowWorkflows] = useState(false);
+  const [showSchedules, setShowSchedules] = useState(false);
+  const [showFleet, setShowFleet] = useState(false);
   const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
   const [focusedPane, setFocusedPane] = useState("p0");
@@ -167,6 +171,8 @@ export default function App() {
         onOpenHelp={() => setShowHelp(true)}
         onOpenMcp={() => setShowMcp(true)}
         onOpenWorkflows={() => setShowWorkflows(true)}
+        onOpenSchedules={() => setShowSchedules(true)}
+        onOpenFleet={() => setShowFleet(true)}
       />
 
       <div className="panes">
@@ -213,6 +219,10 @@ export default function App() {
       {showWorkflows && (
         <WorkflowsPanel commands={commands} onClose={() => setShowWorkflows(false)} />
       )}
+
+      {showSchedules && <SchedulesPanel onClose={() => setShowSchedules(false)} />}
+
+      {showFleet && <FleetPanel onClose={() => setShowFleet(false)} />}
 
       {linkUrl && <LinkView url={linkUrl} onClose={() => setLinkUrl(null)} />}
     </div>
