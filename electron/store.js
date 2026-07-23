@@ -8,13 +8,24 @@ const crypto = require("node:crypto");
 
 let baseDir = null;
 let convDir = null;
+let workflowsDir = null;
 let settingsPath = null;
 
 function init(userDataDir) {
   baseDir = userDataDir;
   convDir = path.join(baseDir, "conversations");
+  workflowsDir = path.join(baseDir, "workflows");
   settingsPath = path.join(baseDir, "settings.json");
   fs.mkdirSync(convDir, { recursive: true });
+  fs.mkdirSync(workflowsDir, { recursive: true });
+}
+
+// Atomic JSON write (temp + rename) — used by the autonomous workflow writers so
+// a crash mid-write can't corrupt a file.
+function writeJsonAtomic(p, obj) {
+  const tmp = `${p}.tmp-${crypto.randomUUID().slice(0, 8)}`;
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
+  fs.renameSync(tmp, p);
 }
 
 function uid() {
@@ -201,6 +212,91 @@ function appendMessage(id, message) {
   return { conversation: c, message: msg };
 }
 
+// ---- Workflows ------------------------------------------------------------
+// One JSON file per workflow. Definition (name/steps) and run-state are updated
+// by SEPARATE setters that each read-modify-write the whole file, so the engine
+// flushing run-state and the rep editing steps can't silently clobber each other.
+
+function normalizeStep(s) {
+  return {
+    id: (s && s.id) || uid(),
+    title: (s && s.title) || "Step",
+    instructions: (s && s.instructions) || "",
+    skillNames: Array.isArray(s && s.skillNames) ? s.skillNames : [],
+    mcpNames: Array.isArray(s && s.mcpNames) ? s.mcpNames : [],
+    gate: s && ["none", "wait", "approve"].includes(s.gate) ? s.gate : "none",
+  };
+}
+
+function wfPath(id) {
+  return path.join(workflowsDir, `${id}.json`);
+}
+
+function createWorkflow(name, description, steps) {
+  const wf = {
+    id: uid(),
+    name: name || "New workflow",
+    description: description || "",
+    steps: (Array.isArray(steps) ? steps : []).map(normalizeStep),
+    run: null,
+    model: null,
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  };
+  writeJsonAtomic(wfPath(wf.id), wf);
+  return wf;
+}
+
+function getWorkflow(id) {
+  try { return JSON.parse(fs.readFileSync(wfPath(id), "utf8")); } catch { return null; }
+}
+
+function listWorkflows() {
+  let files = [];
+  try { files = fs.readdirSync(workflowsDir).filter((f) => f.endsWith(".json")); } catch { return []; }
+  const metas = [];
+  for (const f of files) {
+    try {
+      const w = JSON.parse(fs.readFileSync(path.join(workflowsDir, f), "utf8"));
+      metas.push({
+        id: w.id, name: w.name, description: w.description,
+        stepCount: (w.steps || []).length,
+        status: (w.run && w.run.status) || "draft",
+        updatedAt: w.updatedAt,
+      });
+    } catch { /* skip corrupt file */ }
+  }
+  metas.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  return metas;
+}
+
+// Update the DEFINITION only (never touches run-state).
+function saveWorkflowDef(id, patch) {
+  const w = getWorkflow(id);
+  if (!w) return null;
+  if (typeof patch.name === "string") w.name = patch.name;
+  if (typeof patch.description === "string") w.description = patch.description;
+  if (Array.isArray(patch.steps)) w.steps = patch.steps.map(normalizeStep);
+  if (patch.model !== undefined) w.model = patch.model;
+  w.updatedAt = nowISO();
+  writeJsonAtomic(wfPath(id), w);
+  return w;
+}
+
+// Update the RUN-STATE only (never touches the definition).
+function setWorkflowRun(id, run) {
+  const w = getWorkflow(id);
+  if (!w) return null;
+  w.run = run;
+  w.updatedAt = nowISO();
+  writeJsonAtomic(wfPath(id), w);
+  return w;
+}
+
+function deleteWorkflow(id) {
+  try { fs.unlinkSync(wfPath(id)); return true; } catch { return false; }
+}
+
 // Derive a short title from the first user message.
 function titleFrom(text) {
   const clean = text.replace(/\s+/g, " ").trim();
@@ -247,4 +343,10 @@ module.exports = {
   setConversationSkills,
   appendMessage,
   titleFrom,
+  createWorkflow,
+  getWorkflow,
+  listWorkflows,
+  saveWorkflowDef,
+  setWorkflowRun,
+  deleteWorkflow,
 };

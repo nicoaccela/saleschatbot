@@ -6,6 +6,7 @@ import SetupScreen from "./components/SetupScreen";
 import OnboardingFlow from "./components/OnboardingFlow";
 import HelpPanel from "./components/HelpPanel";
 import McpPanel from "./components/McpPanel";
+import WorkflowsPanel from "./components/WorkflowsPanel";
 import LinkView from "./components/LinkView";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
 
@@ -36,6 +37,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showMcp, setShowMcp] = useState(false);
+  const [showWorkflows, setShowWorkflows] = useState(false);
   const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
   const [focusedPane, setFocusedPane] = useState("p0");
@@ -164,6 +166,7 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenHelp={() => setShowHelp(true)}
         onOpenMcp={() => setShowMcp(true)}
+        onOpenWorkflows={() => setShowWorkflows(true)}
       />
 
       <div className="panes">
@@ -205,6 +208,10 @@ export default function App() {
           onClose={() => setShowMcp(false)}
           onSetupViaClaude={(prompt) => { setShowMcp(false); runHelpAction(prompt); }}
         />
+      )}
+
+      {showWorkflows && (
+        <WorkflowsPanel commands={commands} onClose={() => setShowWorkflows(false)} />
       )}
 
       {linkUrl && <LinkView url={linkUrl} onClose={() => setLinkUrl(null)} />}

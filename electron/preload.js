@@ -35,6 +35,22 @@ contextBridge.exposeInMainWorld("accela", {
   readSkill: (name) => ipcRenderer.invoke("skill:read", name),
   writeSkill: (name, content) => ipcRenderer.invoke("skill:write", { name, content }),
 
+  // workflows
+  listWorkflows: () => ipcRenderer.invoke("workflow:list"),
+  getWorkflow: (id) => ipcRenderer.invoke("workflow:get", id),
+  createWorkflow: (name, description, steps) => ipcRenderer.invoke("workflow:create", { name, description, steps }),
+  saveWorkflow: (id, patch) => ipcRenderer.invoke("workflow:save", { id, patch }),
+  deleteWorkflow: (id) => ipcRenderer.invoke("workflow:delete", id),
+  draftWorkflow: (description) => ipcRenderer.invoke("workflow:draft", description),
+  startWorkflow: (id) => ipcRenderer.invoke("workflow:start", id),
+  resumeWorkflow: (id) => ipcRenderer.invoke("workflow:resume", id),
+  cancelWorkflow: (id) => ipcRenderer.invoke("workflow:cancel", id),
+  onWorkflowEvent: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("workflow:event", handler);
+    return () => ipcRenderer.removeListener("workflow:event", handler);
+  },
+
   // conversations
   listConversations: () => ipcRenderer.invoke("conv:list"),
   getConversation: (id) => ipcRenderer.invoke("conv:get", id),

@@ -89,6 +89,71 @@ export interface McpTestResult {
   error: string | null;
 }
 
+// ---- Workflows -----------------------------------------------------------
+export type WorkflowGate = "none" | "wait" | "approve";
+export type WorkflowStatus = "draft" | "running" | "paused" | "done" | "error";
+
+export interface WorkflowStep {
+  id: string;
+  title: string;
+  instructions: string;      // what the assistant should DO in this step
+  skillNames: string[];      // skills primed for this step
+  mcpNames: string[];        // connections this step leans on (advisory in v1)
+  gate: WorkflowGate;        // pause BEFORE this step ("wait" = real-world event; "approve" = review)
+}
+
+export interface WorkflowRunLogEntry {
+  stepId: string;
+  title: string;
+  status: "running" | "done" | "error";
+  output?: string;
+  error?: string;
+  at: string;
+}
+
+export interface WorkflowRun {
+  cursor: number;                 // index of the NEXT step to run
+  claudeSessionId: string | null; // threaded across steps for memory
+  status: WorkflowStatus;
+  startedAt: string;
+  pausedReason?: string;
+  log: WorkflowRunLogEntry[];
+}
+
+export interface Workflow {
+  id: string;
+  name: string;
+  description?: string;
+  steps: WorkflowStep[];
+  run: WorkflowRun | null;
+  model?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowMeta {
+  id: string;
+  name: string;
+  description?: string;
+  stepCount: number;
+  status: WorkflowStatus;
+  updatedAt: string;
+}
+
+export interface WorkflowEvent {
+  type: "run-start" | "step-start" | "step-delta" | "step-done" | "paused" | "done" | "error";
+  workflowId: string;
+  stepIndex?: number;
+  stepId?: string;
+  title?: string;
+  text?: string;
+  output?: string;
+  reason?: string;
+  gate?: WorkflowGate;
+  message?: string;
+  resumed?: boolean;
+}
+
 export interface Settings {
   model: string;
   fontFamily: "Plus Jakarta Sans" | "Inter" | "System";
@@ -138,6 +203,16 @@ declare global {
       mcpSupport: () => Promise<McpSupport>;
       readSkill: (name: string) => Promise<{ ok: boolean; content: string; path: string; error?: string }>;
       writeSkill: (name: string, content: string) => Promise<{ ok: boolean; error?: string }>;
+      listWorkflows: () => Promise<WorkflowMeta[]>;
+      getWorkflow: (id: string) => Promise<Workflow | null>;
+      createWorkflow: (name?: string, description?: string, steps?: WorkflowStep[]) => Promise<Workflow>;
+      saveWorkflow: (id: string, patch: { name?: string; description?: string; steps?: WorkflowStep[]; model?: string }) => Promise<Workflow | null>;
+      deleteWorkflow: (id: string) => Promise<boolean>;
+      draftWorkflow: (description: string) => Promise<{ ok: boolean; workflow?: Workflow; error?: string }>;
+      startWorkflow: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      resumeWorkflow: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      cancelWorkflow: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      onWorkflowEvent: (cb: (e: WorkflowEvent) => void) => () => void;
       listConversations: () => Promise<ConversationMeta[]>;
       getConversation: (id: string) => Promise<Conversation | null>;
       createConversation: (model?: string) => Promise<Conversation>;

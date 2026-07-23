@@ -9,6 +9,7 @@ const store = require("./store");
 const { checkClaude, checkMcpSupport } = require("./claude");
 const { assembleSystemPrompt, runStep } = require("./engine");
 const mcp = require("./mcp");
+const workflow = require("./workflow");
 const { listAvailableCommands, resolveSkillDir } = require("./commands");
 const skillsPack = require("./skills-pack");
 
@@ -98,6 +99,8 @@ function createWindow() {
 app.whenReady().then(() => {
   store.init(app.getPath("userData"));
   registerIpc();
+  workflow.setEmitter((payload) => send("workflow:event", payload));
+  workflow.reloadOnBoot();
   createWindow();
   initAutoUpdates();
 
@@ -184,6 +187,23 @@ function registerIpc() {
       return { ok: false, error: (err && err.message) || "Could not save this skill." };
     }
   });
+
+  // --- Workflows (definition CRUD + run engine) ---
+  ipcMain.handle("workflow:list", () => store.listWorkflows());
+  ipcMain.handle("workflow:get", (_e, id) => store.getWorkflow(id));
+  ipcMain.handle("workflow:create", (_e, payload) => {
+    const { name, description, steps } = payload || {};
+    return store.createWorkflow(name, description, steps);
+  });
+  ipcMain.handle("workflow:save", (_e, payload) => {
+    const { id, patch } = payload || {};
+    return store.saveWorkflowDef(id, patch || {});
+  });
+  ipcMain.handle("workflow:delete", (_e, id) => store.deleteWorkflow(id));
+  ipcMain.handle("workflow:draft", (_e, description) => workflow.draft(description));
+  ipcMain.handle("workflow:start", (_e, id) => workflow.startRun(id));
+  ipcMain.handle("workflow:resume", (_e, id) => workflow.resumeRun(id));
+  ipcMain.handle("workflow:cancel", (_e, id) => workflow.cancelRun(id));
 
   // --- Conversations ---
   ipcMain.handle("conv:list", () => store.listConversations());
