@@ -4,10 +4,11 @@ export interface ModelOption {
   sub: string;
 }
 
-// Aliases resolve to the latest model in each family on the local CLI.
+// Aliases resolve to the latest model in each family on the local CLI —
+// "opus" now maps to Opus 5. Opus 5 is the default (see store.js DEFAULT_SETTINGS).
 export const MODELS: ModelOption[] = [
-  { id: "opus", label: "Claude Opus 4.8", sub: "Most capable — deep reasoning" },
-  { id: "sonnet", label: "Claude Sonnet 4.6", sub: "Balanced — fast and smart" },
+  { id: "opus", label: "Claude Opus 5", sub: "Most capable — agentic + deep reasoning" },
+  { id: "sonnet", label: "Claude Sonnet 5", sub: "Balanced — fast and smart" },
   { id: "haiku", label: "Claude Haiku 4.5", sub: "Fastest — quick answers" },
 ];
 
