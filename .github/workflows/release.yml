@@ -53,26 +53,20 @@ jobs:
       - name: Build renderer
         run: npm run build:renderer
 
-      # Retried up to 3x. The mac runner intermittently fails `hdiutil detach`
-      # while unmounting the temporary DMG volume — the app has already built
-      # fine at that point, so the whole release dies on a flake unrelated to
-      # our code (this killed v0.5.3). electron-builder overwrites its own
-      # assets in the draft release, so a re-attempt is safe.
+      # Windows first-class: nsis has never flaked here.
+      #
+      # macOS is split into two steps on purpose. `hdiutil` intermittently cannot
+      # detach the temporary DMG volume on the macos-26 runner ("Resource busy") —
+      # a known electron-builder / runner-images problem, not ours. It failed
+      # three times running on v0.5.3 while the app itself built fine every time.
+      # electron-updater consumes the ZIP + latest-mac.yml, never the DMG, so the
+      # ZIP is REQUIRED and the DMG is BEST EFFORT. The ZIP runs first so a DMG
+      # failure can never cost us a working auto-update.
       - name: Build & publish installer (${{ matrix.platform }})
-        shell: bash
+        id: build
+        continue-on-error: true
         run: |
-          for attempt in 1 2 3; do
-            echo "::group::electron-builder attempt $attempt"
-            if npx --no-install electron-builder --${{ matrix.platform }} --publish always; then
-              echo "::endgroup::"
-              exit 0
-            fi
-            echo "::endgroup::"
-            echo "attempt $attempt failed"
-            sleep 20
-          done
-          echo "electron-builder failed 3 times — this is not a flake"
-          exit 1
+          npx --no-install electron-builder ${{ matrix.platform == 'mac' && '--mac zip' || '--win' }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # v1 ships UNSIGNED. Do NOT pass empty CSC_LINK / APPLE_* here: GitHub sets
@@ -83,3 +77,64 @@ jobs:
           # Apple Developer ID cert exists, add the signing secrets back WITH non-empty
           # values (see docs/notarization-and-signing.md).
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      # A retry must FIRST delete the half-uploaded assets from the draft, or
+      # electron-builder dies on `422 already_exists` instead of the original
+      # error and the retry is useless (learned the hard way re-running v0.5.3).
+      # Only this platform's assets are purged — the other matrix job is running
+      # in parallel and its files must survive.
+      - name: Purge this platform's partial assets before retry
+        if: steps.build.outcome == 'failure'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          # .mjs, not `node -`: piped stdin is treated as CommonJS and rejects
+          # the top-level await below.
+          cat > purge-assets.mjs <<'JS'
+          const tag = process.env.TAG, plat = process.env.PLATFORM;
+          const h = { Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                      Accept: "application/vnd.github+json" };
+          const api = "https://api.github.com/repos/${{ github.repository }}";
+          const rels = await (await fetch(`${api}/releases?per_page=20`, { headers: h })).json();
+          const rel = rels.find((r) => r.tag_name === tag);
+          if (!rel) { console.log("no release for", tag, "— nothing to purge"); process.exit(0); }
+          const mine = (n) => plat === "mac"
+            ? /mac|\.dmg/i.test(n)
+            : /\.exe|^latest\.yml$/i.test(n);
+          for (const a of rel.assets.filter((a) => mine(a.name))) {
+            const r = await fetch(`${api}/releases/assets/${a.id}`, { method: "DELETE", headers: h });
+            console.log(`delete ${a.name} -> ${r.status}`);
+          }
+          JS
+          node purge-assets.mjs
+          rm -f purge-assets.mjs
+
+      - name: Retry build & publish (${{ matrix.platform }})
+        if: steps.build.outcome == 'failure'
+        run: |
+          npx --no-install electron-builder ${{ matrix.platform == 'mac' && '--mac zip' || '--win' }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      # Convenience only: a .dmg is a nicer FIRST install than an unzipped .app.
+      # Allowed to fail — see the hdiutil note above. Runs last so latest-mac.yml
+      # is already published by the ZIP step no matter what happens here.
+      - name: Build & publish DMG (mac, best effort)
+        if: matrix.platform == 'mac'
+        id: dmg
+        continue-on-error: true
+        run: npx --no-install electron-builder --mac dmg --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Note a missing DMG
+        if: matrix.platform == 'mac' && steps.dmg.outcome == 'failure'
+        run: |
+          echo "::warning title=No .dmg in this release::hdiutil failed again. The" \
+               "zip + latest-mac.yml published, so auto-update works and existing" \
+               "installs will update. A fresh mac install has to use the .zip."
