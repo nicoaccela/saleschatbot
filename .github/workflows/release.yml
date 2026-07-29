@@ -53,20 +53,42 @@ jobs:
       - name: Build renderer
         run: npm run build:renderer
 
-      # Windows first-class: nsis has never flaked here.
+      # macOS is split into two invocations on purpose. `hdiutil` intermittently
+      # cannot detach the temporary DMG volume on the macos-26 runner ("Resource
+      # busy") — a known electron-builder / runner-images problem, not ours. It
+      # failed three times running on v0.5.3 while the app built fine every time,
+      # and took latest-mac.yml down with it, which leaves mac auto-update blind.
       #
-      # macOS is split into two steps on purpose. `hdiutil` intermittently cannot
-      # detach the temporary DMG volume on the macos-26 runner ("Resource busy") —
-      # a known electron-builder / runner-images problem, not ours. It failed
-      # three times running on v0.5.3 while the app itself built fine every time.
-      # electron-updater consumes the ZIP + latest-mac.yml, never the DMG, so the
-      # ZIP is REQUIRED and the DMG is BEST EFFORT. The ZIP runs first so a DMG
-      # failure can never cost us a working auto-update.
+      # electron-updater consumes the ZIP + latest-mac.yml and CANNOT update from
+      # a DMG. So the DMG is best effort and goes FIRST; the ZIP is required and
+      # goes LAST, because whichever invocation runs last owns latest-mac.yml.
+      # v0.5.4 shipped with them the other way round and published a
+      # latest-mac.yml pointing at the .dmg — a release that cannot self-update.
+      #
+      # Both pass --arm64 --x64 explicitly: a bare `--mac <target>` overrides the
+      # arch list in package.json and silently builds host-arch only, which is how
+      # v0.5.4 lost its Intel builds entirely.
+      - name: Build & publish DMG (mac, best effort)
+        if: matrix.platform == 'mac'
+        id: dmg
+        continue-on-error: true
+        run: npx --no-install electron-builder --mac dmg --arm64 --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Note a missing DMG
+        if: matrix.platform == 'mac' && steps.dmg.outcome == 'failure'
+        run: |
+          echo "::warning title=No .dmg in this release::hdiutil failed again. The" \
+               "zip + latest-mac.yml still publish below, so auto-update works and" \
+               "existing installs will update. A fresh mac install uses the .zip."
+
       - name: Build & publish installer (${{ matrix.platform }})
         id: build
         continue-on-error: true
         run: |
-          npx --no-install electron-builder ${{ matrix.platform == 'mac' && '--mac zip' || '--win' }} --publish always
+          npx --no-install electron-builder ${{ matrix.platform == 'mac' && '--mac zip --arm64 --x64' || '--win' }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # v1 ships UNSIGNED. Do NOT pass empty CSC_LINK / APPLE_* here: GitHub sets
@@ -115,26 +137,7 @@ jobs:
       - name: Retry build & publish (${{ matrix.platform }})
         if: steps.build.outcome == 'failure'
         run: |
-          npx --no-install electron-builder ${{ matrix.platform == 'mac' && '--mac zip' || '--win' }} --publish always
+          npx --no-install electron-builder ${{ matrix.platform == 'mac' && '--mac zip --arm64 --x64' || '--win' }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-
-      # Convenience only: a .dmg is a nicer FIRST install than an unzipped .app.
-      # Allowed to fail — see the hdiutil note above. Runs last so latest-mac.yml
-      # is already published by the ZIP step no matter what happens here.
-      - name: Build & publish DMG (mac, best effort)
-        if: matrix.platform == 'mac'
-        id: dmg
-        continue-on-error: true
-        run: npx --no-install electron-builder --mac dmg --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-
-      - name: Note a missing DMG
-        if: matrix.platform == 'mac' && steps.dmg.outcome == 'failure'
-        run: |
-          echo "::warning title=No .dmg in this release::hdiutil failed again. The" \
-               "zip + latest-mac.yml published, so auto-update works and existing" \
-               "installs will update. A fresh mac install has to use the .zip."
