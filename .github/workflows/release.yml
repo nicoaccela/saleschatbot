@@ -53,8 +53,26 @@ jobs:
       - name: Build renderer
         run: npm run build:renderer
 
+      # Retried up to 3x. The mac runner intermittently fails `hdiutil detach`
+      # while unmounting the temporary DMG volume — the app has already built
+      # fine at that point, so the whole release dies on a flake unrelated to
+      # our code (this killed v0.5.3). electron-builder overwrites its own
+      # assets in the draft release, so a re-attempt is safe.
       - name: Build & publish installer (${{ matrix.platform }})
-        run: npx --no-install electron-builder --${{ matrix.platform }} --publish always
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::electron-builder attempt $attempt"
+            if npx --no-install electron-builder --${{ matrix.platform }} --publish always; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed"
+            sleep 20
+          done
+          echo "electron-builder failed 3 times — this is not a flake"
+          exit 1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # v1 ships UNSIGNED. Do NOT pass empty CSC_LINK / APPLE_* here: GitHub sets
