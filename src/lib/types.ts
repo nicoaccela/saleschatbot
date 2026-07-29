@@ -224,6 +224,23 @@ export interface SendResult {
   title?: string;
 }
 
+/** One open task from the rep's Command Center, as the focus rail draws it. */
+export interface BoardTask {
+  id: string;
+  title: string;
+  why?: string;
+  firstAction?: string;
+  account?: string;
+  effortMin?: number;
+  load?: "quick" | "grind" | "deep";
+  lane?: "owed" | "waiting" | "recurring";
+  priority?: "p1" | "p2" | "p3" | "p4";
+  due?: string | null;
+  received?: string | null;
+  claudePrompt?: string;
+  skills?: string[];
+}
+
 declare global {
   interface Window {
     accela: {
@@ -277,6 +294,15 @@ declare global {
       }) => Promise<SendResult>;
       stop: (requestId: string) => Promise<boolean>;
       openExternal: (url: string) => Promise<void>;
+      openTaskBoard: () => Promise<{
+        url: string; dir: string; scaffolded: boolean; workspace: boolean;
+      }>;
+      taskBoardStatus: () => Promise<{
+        scaffolded: boolean; running: boolean; url: string | null; dir: string;
+        workspace: boolean;
+        counts: { owed: number; waiting: number; total: number } | null;
+      }>;
+      taskBoardTasks: () => Promise<BoardTask[]>;
       onChatEvent: (cb: (e: ChatEvent) => void) => () => void;
     };
   }

@@ -14,6 +14,7 @@ const scheduler = require("./scheduler");
 const fleet = require("./fleet");
 const { listAvailableCommands, resolveSkillDir } = require("./commands");
 const skillImport = require("./skill-import");
+const taskboard = require("./taskboard");
 
 let mainWindow = null;
 
@@ -100,6 +101,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
   store.init(app.getPath("userData"));
+  // the board lives in userData, outside the repo, so it is per-rep by construction
+  taskboard.init(
+    app.getPath("userData"),
+    app.isPackaged ? path.join(process.resourcesPath, "skills")
+                   : path.join(__dirname, "..", "skills")
+  );
   registerIpc();
   workflow.setEmitter((payload) => send("workflow:event", payload));
   workflow.reloadOnBoot();
@@ -114,6 +121,8 @@ app.whenReady().then(() => {
   });
 });
 
+app.on("before-quit", () => { taskboard.stop(); });
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
@@ -126,6 +135,9 @@ function send(channel, payload) {
 
 function registerIpc() {
   // --- Setup / health ---
+  ipcMain.handle("taskboard:open", () => taskboard.open());
+  ipcMain.handle("taskboard:status", () => taskboard.status());
+  ipcMain.handle("taskboard:tasks", () => taskboard.tasks());
   ipcMain.handle("claude:check", () => checkClaude());
 
   // --- Available slash-commands / skills ---

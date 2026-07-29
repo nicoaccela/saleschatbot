@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("accela", {
   },
 
   // setup / health
+  openTaskBoard: () => ipcRenderer.invoke("taskboard:open"),
+  taskBoardStatus: () => ipcRenderer.invoke("taskboard:status"),
+  taskBoardTasks: () => ipcRenderer.invoke("taskboard:tasks"),
   checkClaude: () => ipcRenderer.invoke("claude:check"),
   listCommands: () => ipcRenderer.invoke("commands:list"),
 

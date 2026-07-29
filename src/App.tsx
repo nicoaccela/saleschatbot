@@ -9,6 +9,7 @@ import McpPanel from "./components/McpPanel";
 import WorkflowsPanel from "./components/WorkflowsPanel";
 import SchedulesPanel from "./components/SchedulesPanel";
 import FleetPanel from "./components/FleetPanel";
+import CommandCenterView from "./components/CommandCenterView";
 import GettingStarted from "./components/GettingStarted";
 import LinkView from "./components/LinkView";
 import type { ConversationMeta, Settings, SlashCommand } from "./lib/types";
@@ -43,6 +44,11 @@ export default function App() {
   const [showWorkflows, setShowWorkflows] = useState(false);
   const [showSchedules, setShowSchedules] = useState(false);
   const [showFleet, setShowFleet] = useState(false);
+  // The Command Center is a VIEW, not a modal — it is a surface the rep works
+  // in. Once opened it stays mounted and we only hide it, so the board's server,
+  // scroll position, and any in-flight chat all survive toggling back and forth.
+  const [view, setView] = useState<"chat" | "cc">("chat");
+  const [ccMounted, setCcMounted] = useState(false);
   const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [seed, setSeed] = useState<{ paneId: string; text: string } | null>(null);
   const [panes, setPanes] = useState<Pane[]>([{ id: "p0", conversationId: null }]);
@@ -87,6 +93,7 @@ export default function App() {
   const openConversation = useCallback(
     (id: string) => {
       setPaneConversation(focusedPane, id);
+      setView("chat"); // picking a chat from the sidebar means "show me the chat"
     },
     [focusedPane, setPaneConversation],
   );
@@ -95,7 +102,13 @@ export default function App() {
     const c = await window.accela.createConversation(settings?.model);
     await refreshList();
     setPaneConversation(focusedPane, c.id);
+    setView("chat");
   }, [settings?.model, refreshList, focusedPane, setPaneConversation]);
+
+  const openCommandCenter = useCallback(() => {
+    setCcMounted(true);
+    setView((v) => (v === "cc" ? "chat" : "cc"));
+  }, []);
 
   const deleteConversation = useCallback(
     async (id: string) => {
@@ -142,6 +155,7 @@ export default function App() {
       await refreshList();
       setPaneConversation(focusedPane, c.id);
       setSeed({ paneId: focusedPane, text: prompt });
+      setView("chat");
     },
     [settings?.model, refreshList, focusedPane, setPaneConversation],
   );
@@ -176,9 +190,11 @@ export default function App() {
         onOpenWorkflows={() => setShowWorkflows(true)}
         onOpenSchedules={() => setShowSchedules(true)}
         onOpenFleet={() => setShowFleet(true)}
+        onOpenCommandCenter={openCommandCenter}
+        commandCenterOpen={view === "cc"}
       />
 
-      <div className="panes">
+      <div className="panes" style={view === "cc" ? { display: "none" } : undefined}>
         {panes.map((pane) => (
           <ChatPane
             key={pane.id}
@@ -198,6 +214,12 @@ export default function App() {
           />
         ))}
       </div>
+
+      {ccMounted && (
+        <div className="cc-host" style={view === "cc" ? undefined : { display: "none" }}>
+          <CommandCenterView onWorkTask={runHelpAction} />
+        </div>
+      )}
 
       {showSettings && (
         <SettingsPanel

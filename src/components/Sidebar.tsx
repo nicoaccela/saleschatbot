@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Settings as SettingsIcon, Trash2, HelpCircle, Plug, Workflow, Users, CalendarClock } from "lucide-react";
+import { Plus, MessageSquare, Settings as SettingsIcon, Trash2, HelpCircle, Plug, Workflow, Users, CalendarClock, ListChecks } from "lucide-react";
 import logoWhite from "../assets/accela-logo-white.svg";
 import type { ConversationMeta } from "../lib/types";
 
@@ -25,6 +25,8 @@ export default function Sidebar({
   onOpenWorkflows,
   onOpenSchedules,
   onOpenFleet,
+  onOpenCommandCenter,
+  commandCenterOpen,
 }: {
   conversations: ConversationMeta[];
   activeIds: string[];
@@ -37,6 +39,8 @@ export default function Sidebar({
   onOpenWorkflows: () => void;
   onOpenSchedules: () => void;
   onOpenFleet: () => void;
+  onOpenCommandCenter: () => void;
+  commandCenterOpen: boolean;
 }) {
   // Group conversations by recency for a Claude-app-like list.
   const groups: Record<string, ConversationMeta[]> = {};
@@ -94,6 +98,12 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-bottom">
+        <button
+          className={`side-btn${commandCenterOpen ? " on" : ""}`}
+          onClick={onOpenCommandCenter}
+        >
+          <ListChecks size={17} /> Command Center
+        </button>
         <button className="side-btn" onClick={onOpenSchedules}>
           <CalendarClock size={17} /> Today
         </button>
