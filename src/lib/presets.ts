@@ -23,7 +23,8 @@ export const PRESET_GROUPS: PresetGroup[] = [
   { group: "Sales Operations", skills: ["territory-design", "forecast-hygiene", "pipeline-analytics", "deal-desk"] },
   { group: "Product Knowledge", skills: ["product-knowledge"] },
   { group: "Brand & Create", skills: ["accela-brand-2026", "accela-deck", "accela-content", "accela-voice"] },
-  { group: "Account & Research", skills: ["account-brief", "territory-plan", "pursuit-qualify", "conference-mode"] },
+  { group: "Account & Research", skills: ["account-brief", "territory-plan", "conference-mode"] },
+  { group: "Signal Intelligence (Pursuit)", skills: ["pursuit-qualify", "pursuit-mcp", "pursuit-signals"] },
   { group: "Setup & Workspace", skills: ["brand-setup", "workspace-setup", "workspace-learn", "workspace-organize"] },
 ];
 
@@ -69,7 +70,9 @@ export const SKILL_LABELS: Record<string, string> = {
   "accela-content": "On-Brand Content",
   "accela-voice": "Brand Voice",
   "account-brief": "Account Brief",
-  "pursuit-qualify": "Pursuit Qualify",
+  "pursuit-qualify": "Qualify a Signal",
+  "pursuit-mcp": "Pursuit Search Conventions",
+  "pursuit-signals": "Tune Pursuit Signals",
   "conference-mode": "Conference Mode",
   "brand-setup": "Install Brand Kit",
   "workspace-setup": "Set Up Workspace",

@@ -41,7 +41,7 @@ export const ROLES: RoleDef[] = [
     starter: ["prospecting-plan", "cold-outreach", "discovery-prep"],
     library: [
       "prospecting-plan", "cold-outreach", "discovery-prep",
-      "pursuit-qualify", "account-brief", "event-report",
+      "pursuit-qualify", "pursuit-mcp", "account-brief", "event-report",
       "objection-handling", "meddpicc", ...UNIVERSAL,
     ],
   },
@@ -55,7 +55,8 @@ export const ROLES: RoleDef[] = [
     library: [
       "meddpicc", "deal-strategy", "discovery-prep",
       "objection-handling", "pricing-model", "business-case-roi", "budget-finder",
-      "pipeline-report", "account-brief", "accela-deck", ...UNIVERSAL,
+      "pipeline-report", "account-brief", "pursuit-qualify", "pursuit-mcp",
+      "accela-deck", ...UNIVERSAL,
     ],
   },
   {
@@ -68,7 +69,8 @@ export const ROLES: RoleDef[] = [
     library: [
       "deal-strategy", "territory-plan", "meddpicc",
       "business-case-roi", "pricing-model", "budget-finder", "account-brief",
-      "pipeline-report", "objection-handling", "accela-deck", ...UNIVERSAL,
+      "pipeline-report", "objection-handling", "pursuit-qualify", "pursuit-mcp",
+      "accela-deck", ...UNIVERSAL,
     ],
   },
   {
@@ -94,7 +96,7 @@ export const ROLES: RoleDef[] = [
     library: [
       "team-forecast", "pipeline-report", "revenue-strategy",
       "deal-review", "salesforce-report", "one-on-one-prep", "territory-plan",
-      "meddpicc", "business-case-roi", "accela-deck", ...UNIVERSAL,
+      "meddpicc", "business-case-roi", "pursuit-signals", "accela-deck", ...UNIVERSAL,
     ],
   },
   {
@@ -172,7 +174,7 @@ export const ROLES: RoleDef[] = [
     library: [
       "forecast-hygiene", "pipeline-analytics", "salesforce-report",
       "territory-design", "deal-desk", "revenue-strategy", "pipeline-report",
-      "team-forecast", ...UNIVERSAL,
+      "team-forecast", "pursuit-signals", ...UNIVERSAL,
     ],
   },
 ];
