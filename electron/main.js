@@ -51,6 +51,8 @@ function initAutoUpdates() {
 
 // Track in-flight turns so the UI can cancel them.
 const cancellers = new Map(); // requestId -> fn
+// ...and so the UI can push extra context INTO a turn that's already running.
+const injectors = new Map(); // requestId -> (text) => bool
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -126,6 +128,14 @@ app.on("before-quit", () => { taskboard.stop(); });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
+// Prefix a message with any attached paths so Claude knows to Read/Glob them.
+// Shared by the initial send and by mid-turn injections.
+function withAttachments(text, attachList) {
+  if (!attachList.length) return text;
+  const lines = attachList.map((p) => `- ${p}`).join("\n");
+  return `The user attached these local files/folders. Use your Read/Glob/Grep tools to inspect them as needed:\n${lines}\n\n${text}`;
+}
 
 function send(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -305,12 +315,7 @@ function registerIpc() {
     store.saveConversation(conv);
 
     // Augment the prompt with attached paths for Claude to read.
-    let effectivePrompt = text;
-    if (attachList.length) {
-      const lines = attachList.map((p) => `- ${p}`).join("\n");
-      effectivePrompt =
-        `The user attached these local files/folders. Use your Read/Glob/Grep tools to inspect them as needed:\n${lines}\n\n${text}`;
-    }
+    const effectivePrompt = withAttachments(text, attachList);
 
     // Personalize with the rep profile, then prime with activated skills. The
     // assembly lives in engine.js so chat, workflows, and sweeps stay identical.
@@ -365,6 +370,7 @@ function registerIpc() {
       strictMcp: !!settings.mcpStrict,
       disabledTools,
       registerCanceller: (fn) => cancellers.set(requestId, () => { cancelled = true; fn(); }),
+      registerInjector: (fn) => injectors.set(requestId, fn),
       onEvent: (evt) => {
         // Once stopped, drop the dying child's trailing output instead of
         // buffering/serializing it across IPC for a turn the user abandoned.
@@ -394,6 +400,7 @@ function registerIpc() {
 
     flushDeltas(); // emit any buffered tail before persisting + returning
     cancellers.delete(requestId);
+    injectors.delete(requestId);
 
     // Persist assistant reply + Claude Code session id for the next --resume.
     if (result.text) {
@@ -423,13 +430,35 @@ function registerIpc() {
     };
     } catch (err) {
       if (flushTimer) clearTimeout(flushTimer);
-      if (requestId) cancellers.delete(requestId);
+      if (requestId) { cancellers.delete(requestId); injectors.delete(requestId); }
       return errShape(err && err.message ? err.message : String(err));
     }
   });
 
+  // --- Add context to a turn that's already running ---
+  // The CLI is spawned in streaming-input mode, so a message written to its live
+  // stdin is picked up at the next agent boundary — Claude reads it while it works
+  // instead of the rep waiting for the turn to end. Returns { ok: false } if the
+  // turn has already finished, and the renderer sends it as a normal turn instead.
+  ipcMain.handle("chat:inject", (_e, payload) => {
+    const { requestId, conversationId, text, attachments } = payload || {};
+    const inject = injectors.get(requestId);
+    if (!inject || typeof text !== "string" || !text.trim()) return { ok: false };
+    const attachList = Array.isArray(attachments) ? attachments.filter(Boolean) : [];
+    if (!inject(withAttachments(text, attachList))) return { ok: false };
+    // Persist the raw message so the transcript reads in order (and survives a
+    // reload): user → injected user → assistant.
+    try {
+      if (conversationId) {
+        store.appendMessage(conversationId, { role: "user", content: text, attachments: attachList });
+      }
+    } catch { /* the injection already landed; persistence is best-effort */ }
+    return { ok: true };
+  });
+
   // --- Cancel an in-flight turn ---
   ipcMain.handle("chat:stop", (_e, requestId) => {
+    injectors.delete(requestId);
     const fn = cancellers.get(requestId);
     if (fn) { fn(); cancellers.delete(requestId); return true; }
     return false;

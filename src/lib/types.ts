@@ -292,6 +292,12 @@ declare global {
         model?: string;
         attachments?: string[];
       }) => Promise<SendResult>;
+      injectMessage: (payload: {
+        requestId: string;
+        conversationId: string;
+        text: string;
+        attachments?: string[];
+      }) => Promise<{ ok: boolean }>;
       stop: (requestId: string) => Promise<boolean>;
       openExternal: (url: string) => Promise<void>;
       openTaskBoard: () => Promise<{

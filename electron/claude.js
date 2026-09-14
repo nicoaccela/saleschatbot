@@ -1,10 +1,18 @@
 // claude.js — drives the local Claude Code CLI as the model backend.
 //
-// Each user turn spawns:  claude -p --output-format stream-json --include-partial-messages
-//                                --verbose --model <m> [--resume <sessionId>] ...
-// We write the prompt to stdin, parse the newline-delimited JSON event stream,
-// emit text deltas live, and resolve with the final text + the Claude Code
-// session id (used to --resume the next turn → real multi-turn memory).
+// Each user turn spawns:  claude -p --input-format stream-json --output-format stream-json
+//                                --include-partial-messages --verbose --model <m>
+//                                [--resume <sessionId>] ...
+// We write the prompt to stdin as a stream-json message, parse the newline-delimited
+// JSON event stream, emit text deltas live, and resolve with the final text + the
+// Claude Code session id (used to --resume the next turn → real multi-turn memory).
+//
+// stdin stays OPEN for the life of the turn (streaming-input mode). That is what
+// lets the rep add context while Claude is still working: registerInjector hands
+// the caller a function that writes another user message onto the live stdin, and
+// the CLI picks it up at the next agent boundary — folded into the running turn if
+// it lands during a tool call, or as an immediate follow-on segment if Claude was
+// mid-sentence. Either way the rep never waits for the turn to end.
 //
 // Safety: by default we disallow mutating/agentic tools so this behaves like a
 // conversational assistant (claude.ai-style) and never edits the machine or
@@ -134,6 +142,7 @@ function classifyError(raw) {
  * @param {string} [opts.resumeId]    Claude Code session id to resume
  * @param {string} [opts.systemPrompt] appended system prompt
  * @param {string} [opts.toolMode]    "chat" (no tools) | "readonly" (read/search) | "full"
+ * @param {function} [opts.registerInjector] receives fn(text)->bool to add context mid-turn
  * @param {function} opts.onEvent     called with {type:"delta"|"init"|"done"|"error", ...}
  * @returns {Promise<{sessionId:string|null, text:string, usage:object|null, cost:number|null}>}
  */
@@ -152,6 +161,7 @@ function runTurn(opts) {
 
   const args = [
     "-p",
+    "--input-format", "stream-json",  // keeps stdin open → mid-turn context injection
     "--output-format", "stream-json",
     "--include-partial-messages",
     "--verbose", // required by Claude Code when streaming json in print mode
@@ -231,6 +241,12 @@ function runTurn(opts) {
     }
   };
 
+  // After a `result`, how long to wait for a fresh `system/init` before calling
+  // the turn finished. In streaming-input mode the CLI re-inits within ~100ms to
+  // process an injected message, so this only ever delays a turn the rep added
+  // context to — and only when that context happened to land at the very end.
+  const SEGMENT_GRACE_MS = 1500;
+
   return new Promise((resolve) => {
     let child;
     try {
@@ -246,19 +262,88 @@ function runTurn(opts) {
     }
 
     let sessionId = resumeId || null;
-    let assembled = "";   // text from partial deltas
+    let assembled = "";   // text from partial deltas (accumulates across segments)
     let resultText = "";  // text from the final result event (fallback)
     let usage = null;
     let cost = null;
     let stderrBuf = "";
     let stdoutRemainder = "";
-    let cancelled = false; // set when the user Stops — a clean exit, not an error
+    let cancelled = false;   // set when the user Stops — a clean exit, not an error
+    let settled = false;     // the turn has resolved; ignore everything after
+    let injected = false;    // the rep added context mid-turn (→ expect extra segments)
+    let childClosed = false; // no further init can arrive once the child is gone
+    let failedSubtype = null; // non-success result subtype, if any
+    let graceTimer = null;   // pending "turn is over" decision (see SEGMENT_GRACE_MS)
+    let reapTimer = null;    // grace period for the child to exit on stdin EOF
 
-    // Write the prompt to stdin and close it.
-    try {
-      child.stdin.write(prompt);
-      child.stdin.end();
-    } catch { /* stream may already be closed on error */ }
+    const clearTimers = () => {
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      if (reapTimer) { clearTimeout(reapTimer); reapTimer = null; }
+    };
+
+    // Send a user message on the live stdin. Used once for the prompt, then again
+    // for anything the rep injects while the turn runs.
+    const writeUserMessage = (text) => {
+      if (settled || childClosed) return false;
+      if (!child.stdin || !child.stdin.writable) return false;
+      try {
+        child.stdin.write(
+          JSON.stringify({
+            type: "user",
+            message: { role: "user", content: [{ type: "text", text: String(text) }] },
+          }) + "\n",
+        );
+        return true;
+      } catch {
+        return false; // stream may already be closed on error
+      }
+    };
+
+    // stdin is deliberately NOT ended here — see the file header.
+    writeUserMessage(prompt);
+
+    // Turn is done: stop accepting input and let the CLI wind down, escalating to
+    // SIGTERM if it doesn't exit on EOF (in streaming-input mode it otherwise sits
+    // waiting for more messages forever).
+    const closeChild = () => {
+      try { child.stdin.end(); } catch { /* ignore */ }
+      if (childClosed) return;
+      reapTimer = setTimeout(() => {
+        reapTimer = null;
+        try { child.kill("SIGTERM"); } catch { /* ignore */ }
+      }, 1000);
+    };
+
+    // Usage arrives per segment, so add the token counts up rather than letting a
+    // follow-on segment's numbers overwrite the first one's.
+    const mergeUsage = (u) => {
+      if (!u || typeof u !== "object") return;
+      if (!usage) { usage = { ...u }; return; }
+      for (const k of ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]) {
+        if (typeof u[k] === "number") usage[k] = (typeof usage[k] === "number" ? usage[k] : 0) + u[k];
+      }
+    };
+
+    function finish() {
+      if (settled) return;
+      settled = true;
+      clearTimers();
+      cleanup();
+      const finalText = assembled || resultText;
+      if (cancelled) {
+        onEvent({ type: "done", sessionId, text: finalText, usage, cost, cancelled: true });
+        resolve({ sessionId, text: finalText, usage, cost, cancelled: true });
+      } else if (failedSubtype) {
+        const raw = stderrBuf.trim() || `Claude ended the turn with: ${failedSubtype}`;
+        const { kind, friendly, sessionNotFound } = classifyError(raw);
+        onEvent({ type: "error", message: friendly });
+        resolve({ sessionId, text: finalText, usage, cost, error: friendly, rawError: raw, errorKind: kind, sessionNotFound: !!sessionNotFound });
+      } else {
+        onEvent({ type: "done", sessionId, text: finalText, usage, cost });
+        resolve({ sessionId, text: finalText, usage, cost });
+      }
+      closeChild();
+    }
 
     child.stdout.on("data", (chunk) => {
       const text = stdoutRemainder + chunk.toString();
@@ -274,10 +359,16 @@ function runTurn(opts) {
     });
 
     function handleEvent(evt) {
+      if (settled) return;
+
       // Capture session id as early as possible.
       if (evt.session_id) sessionId = evt.session_id;
 
       if (evt.type === "system" && evt.subtype === "init") {
+        // The CLI re-inits for every segment. An init arriving after a `result`
+        // means it picked up an injected message and is working again, so the
+        // pending "turn is over" decision is wrong — cancel it.
+        if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
         onEvent({ type: "init", sessionId });
         return;
       }
@@ -307,32 +398,55 @@ function runTurn(opts) {
         return;
       }
 
-      // Terminal result.
+      // End of a segment — not necessarily the end of the turn. In streaming-input
+      // mode the child stays alive after a result, and an injected message makes it
+      // re-init and keep going. So when the rep has added context, wait briefly for
+      // that init before declaring the turn finished.
       if (evt.type === "result") {
         if (typeof evt.result === "string") resultText = evt.result;
-        usage = evt.usage || null;
-        cost = typeof evt.total_cost_usd === "number" ? evt.total_cost_usd : null;
+        mergeUsage(evt.usage);
+        if (typeof evt.total_cost_usd === "number") cost = (cost || 0) + evt.total_cost_usd;
+        if (evt.subtype && evt.subtype !== "success") failedSubtype = evt.subtype;
+        if (injected && !childClosed && !failedSubtype) {
+          if (graceTimer) clearTimeout(graceTimer);
+          graceTimer = setTimeout(() => { graceTimer = null; finish(); }, SEGMENT_GRACE_MS);
+        } else {
+          finish();
+        }
       }
     }
 
     child.stderr.on("data", (d) => (stderrBuf += d.toString()));
 
     child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimers();
       cleanup();
       onEvent({ type: "error", message: err.message });
       resolve({ sessionId, text: assembled || resultText, usage, cost, error: err.message });
     });
 
     child.on("close", (code) => {
+      childClosed = true;
+      if (reapTimer) { clearTimeout(reapTimer); reapTimer = null; }
+      // The normal path already resolved on the terminal `result` event; the child
+      // exiting afterwards (on stdin EOF, or our SIGTERM) is just teardown.
+      if (settled) { cleanup(); return; }
       cleanup();
       // Parse any final buffered event that arrived without a trailing newline
       // (Claude often omits the EOF newline) — this is where the result event's
       // session_id / usage / cost can live. Dropping it loses --resume + telemetry.
+      // childClosed is already set, so a result parsed here finishes immediately
+      // instead of waiting for an init that can no longer arrive.
       const rem = stdoutRemainder.trim();
       if (rem) {
         stdoutRemainder = "";
         try { handleEvent(JSON.parse(rem)); } catch { /* trailing partial — ignore */ }
+        if (settled) return;
       }
+      settled = true;
+      clearTimers();
 
       const finalText = assembled || resultText;
       // A user Stop kills the child with SIGTERM (non-zero exit). That is NOT an
@@ -357,7 +471,24 @@ function runTurn(opts) {
     // Allow cancellation from the caller.
     opts.registerCanceller && opts.registerCanceller(() => {
       cancelled = true;
+      clearTimers();
+      try { child.stdin.end(); } catch { /* ignore */ }
       try { child.kill("SIGTERM"); } catch { /* ignore */ }
+    });
+
+    // Hand the caller a way to add context to this turn while it's still running.
+    // Returns false if the turn already finished, so the caller can fall back to
+    // sending the message as a normal new turn.
+    opts.registerInjector && opts.registerInjector((text) => {
+      if (!writeUserMessage(text)) return false;
+      injected = true;
+      // If the turn was already winding down, a result may have fired between the
+      // rep hitting enter and this write. Give the CLI its chance to re-init.
+      if (graceTimer) {
+        clearTimeout(graceTimer);
+        graceTimer = setTimeout(() => { graceTimer = null; finish(); }, SEGMENT_GRACE_MS);
+      }
+      return true;
     });
   });
 }

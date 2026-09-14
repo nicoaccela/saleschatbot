@@ -95,6 +95,9 @@ contextBridge.exposeInMainWorld("accela", {
 
   // chat
   sendMessage: (payload) => ipcRenderer.invoke("chat:send", payload),
+  // add context to a turn that's already running (returns { ok } — false means
+  // the turn finished first, so send it as a normal message)
+  injectMessage: (payload) => ipcRenderer.invoke("chat:inject", payload),
   stop: (requestId) => ipcRenderer.invoke("chat:stop", requestId),
 
   // streaming events: cb({type, requestId, conversationId, text?, ...})

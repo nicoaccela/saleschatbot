@@ -52,8 +52,9 @@ export default function ChatPane({
   const [attachments, setAttachments] = useState<string[]>([]);
   const [showSkills, setShowSkills] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  // Messages typed while a turn is running — held and sent in order as each turn
-  // finishes (Claude Code-style queueing). Each keeps its own attachments snapshot.
+  // Fallback holding pen: messages typed while a turn is running normally go
+  // straight into that turn (see handleSend), so this only fills when injection
+  // missed. Sent in order as turns finish; each keeps its own attachments snapshot.
   const [queue, setQueue] = useState<{ id: string; text: string; attachments: string[] }[]>([]);
 
   // dragenter/leave fire for every child element, so count depth to know when
@@ -243,19 +244,42 @@ export default function ChatPane({
     }
   }
 
-  // Composer submit. While a turn is running, queue the message instead of
-  // blocking; the drain effect sends queued messages in order as turns finish.
-  function handleSend() {
+  // Composer submit. While a turn is running, push the message straight into the
+  // live turn so Claude reads it as context while it's still working. Queueing is
+  // only the fallback for when that can't land — the turn finished a moment before
+  // the rep hit enter, or another pane owns it — and the drain effect sends those.
+  async function handleSend() {
     const text = input.trim();
     if (!text && attachments.length === 0) return;
     const msg = { id: localId("q"), text, attachments };
     setInput("");
     setAttachments([]);
-    if (busy) {
-      setQueue((q) => [...q, msg]);
-    } else {
+
+    if (!busy) {
       void runTurn(msg.text, msg.attachments);
+      return;
     }
+
+    const requestId = requestIdRef.current;
+    const convId = convIdRef.current;
+    // An attachments-only message has nothing to say mid-turn, so it queues.
+    if (requestId && convId && text) {
+      // Render it right away — once it's on the CLI's stdin it's part of the
+      // conversation, so it shouldn't sit in a "waiting" strip.
+      setConv((c) =>
+        c ? { ...c, messages: [...c.messages, { id: msg.id, role: "user", content: text, ts: new Date().toISOString(), attachments: msg.attachments }] } : c,
+      );
+      const res = await window.accela.injectMessage({
+        requestId,
+        conversationId: convId,
+        text,
+        attachments: msg.attachments,
+      });
+      if (res?.ok) return;
+      // It missed the turn — take the optimistic bubble back out and queue it.
+      setConv((c) => (c ? { ...c, messages: c.messages.filter((m) => m.id !== msg.id) } : c));
+    }
+    setQueue((q) => [...q, msg]);
   }
 
   function removeQueued(id: string) {
